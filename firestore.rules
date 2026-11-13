@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'migaakuz@gmail.com';
+    }
+    match /recipes/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+    match /meta/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+  }
+}
