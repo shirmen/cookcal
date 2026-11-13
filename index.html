@@ -88,6 +88,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
 .edit:hover{color:var(--accent);background:var(--bg)}
 .sec{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;padding:8px;cursor:pointer}
 .share{display:block;margin:0 auto 20px}
+.signin{width:100%;padding:14px;min-height:48px;font-weight:600;color:#fff!important;background:var(--accent)!important;border-radius:10px;text-align:center}
 </style>
 </head>
 <body>
@@ -369,6 +370,36 @@ function renderShop(){
 }
 $('wprev').onclick=()=>{week.setDate(week.getDate()-7);renderShop()};
 $('wnext').onclick=()=>{week.setDate(week.getDate()+7);renderShop()};
+/* Live sync + owner sign-in (Firebase mode only) */
+function refresh(){render();renderCal();renderShop()}
+if(REMOTE){
+  fs.onSnapshot(fs.collection(db,'recipes'),snap=>{
+    recipes=snap.docs.map(d=>d.data()).sort((a,b)=>Number(b.id)-Number(a.id));
+    remoteSnap=new Map(recipes.map(r=>[String(r.id),JSON.stringify(norm(r))]));
+    refresh();
+  },fail);
+  fs.onSnapshot(fs.doc(db,'meta','plan'),d=>{
+    try{plan=d.exists()?JSON.parse(d.data().json):{}}catch{plan={}}
+    refresh();
+  },fail);
+  if(!VIEW){
+    authApi.onAuthStateChanged(auth,u=>{
+      document.documentElement.dataset.auth=u?'in':'out';
+      $('signout').hidden=!u;
+    });
+    $('signin').onclick=async()=>{
+      const prov=new authApi.GoogleAuthProvider();
+      try{await authApi.signInWithPopup(auth,prov)}
+      catch(e){
+        if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(e.code)){
+          try{await authApi.signInWithRedirect(auth,prov);return}catch(e2){e=e2}
+        }
+        alert('Sign-in failed: '+(e.code||e.message));
+      }
+    };
+    $('signout').onclick=()=>authApi.signOut(auth);
+  }
+}
 </script>
 </body>
 </html>
