@@ -771,6 +771,40 @@ try{checked=JSON.parse(localStorage.getItem(GKEY))}catch{}
 if(!checked||typeof checked!=='object'||Array.isArray(checked))checked={};
 const monday=d=>{const m=new Date(d.getFullYear(),d.getMonth(),d.getDate());m.setDate(m.getDate()-(m.getDay()+6)%7);return m};
 let week=monday(today);
+const FR={'½':.5,'¼':.25,'¾':.75,'⅓':1/3,'⅔':2/3,'⅛':.125};
+const UNITS={tsp:['v',4.93,'tsp'],teaspoon:['v',4.93,'tsp'],tbsp:['v',14.79,'tbsp'],tablespoon:['v',14.79,'tbsp'],cup:['v',236.6,'cup'],ml:['v',1,'ml'],l:['v',1000,'l'],liter:['v',1000,'l'],litre:['v',1000,'l'],
+  g:['m',1,'g'],gram:['m',1,'g'],kg:['m',1000,'kg'],oz:['m',28.35,'oz'],ounce:['m',28.35,'oz'],lb:['m',453.6,'lb'],pound:['m',453.6,'lb']};
+const UNIT_RE=new RegExp('^('+[...Object.keys(UNITS),'clove','can','slice','pinch','bunch','stick','pkg','package','piece','sprig','head'].join('|')+')s?\\b\\.?\\s*(?:of\\s+)?','i');
+const DESC=/\b(large|medium|small|fresh|freshly|chopped|minced|diced|sliced|whole|ripe|extra|boneless|skinless|finely|roughly|grated|shredded|peeled|crushed|packed|yolks?|whites?|optional)\b/g;
+function singular(w){return w.replace(/ies$/,'y').replace(/(o|ch|sh|x)es$/,'$1').replace(/([^su])s$/,'$1')}
+// Splits "3 large eggs" into qty/unit/name; returns null when there is no leading quantity.
+function parseIng(t){
+  const m=t.trim().match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d*\.?\d+\s*[½¼¾⅓⅔⅛]?|[½¼¾⅓⅔⅛])\s*(?:-\s*\d[\d./]*\s*)?(.*)$/);
+  if(!m)return null;
+  let q=m[1].trim(),qty;
+  if(/^\d+\s+\d+\/\d+$/.test(q)){const[w,f]=q.split(/\s+/),[n,d]=f.split('/');qty=+w+n/d}
+  else if(/^\d+\/\d+$/.test(q)){const[n,d]=q.split('/');qty=n/d}
+  else{qty=0;for(const c of q)qty+=FR[c]||0;const num=q.replace(/[½¼¾⅓⅔⅛]/g,'').trim();if(num)qty+=parseFloat(num)}
+  if(!(qty>0))return null;
+  let rest=m[2].replace(/\([^)]*\)/g,' ').replace(/,.*$/,'').trim(),unit='',fam='n',f=1,disp='';
+  const um=rest.match(UNIT_RE);
+  if(um){const u=um[1].toLowerCase(),def=UNITS[u];if(def){fam=def[0];f=def[1];disp=def[2]}else{fam='u:'+u;disp=u}rest=rest.slice(um[0].length)}
+  const name=rest.toLowerCase().replace(DESC,' ').replace(/\s+/g,' ').trim().split(' ').map((w,i,a)=>i===a.length-1?singular(w):w).join(' ');
+  if(!name)return null;
+  const tm=fam==='n'&&name.match(/^(.+) (clove|slice|sprig|stick)$/);
+  if(tm)return{qty,fam:'u:'+tm[2],disp:tm[2],name:tm[1]};
+  return{qty:qty*f,fam,disp,name};
+}
+const fmtN=n=>{const r=Math.round(n*4)/4,w=Math.floor(r),fr={.25:'¼',.5:'½',.75:'¾'}[r-w]||'';return n<10&&!Number.isInteger(r)?(w||'')+fr||String(+n.toFixed(1)):String(+n.toFixed(n<10?1:0))};
+const plural=(n,w)=>n>1?(/[^aeiou]y$/.test(w)?w.slice(0,-1)+'ies':/(o|ch|sh|x)$/.test(w)?w+'es':w+'s'):w;
+function fmtItem(it){
+  let q=it.base,u='';
+  if(it.fam==='v'){const metric=/^(ml|l)$/.test(it.disp);if(metric){u=q>=1000?(q/=1000,'l'):'ml'}else if(q>=236.6/4){q/=236.6;u='cup'}else if(q>=14.79){q/=14.79;u='tbsp'}else{q/=4.93;u='tsp'}}
+  else if(it.fam==='m'){const metric=/^k?g$/.test(it.disp);if(metric){u=q>=1000?(q/=1000,'kg'):'g'}else if(q>=453.6){q/=453.6;u='lb'}else{q/=28.35;u='oz'}}
+  else if(it.fam!=='n'){u=it.disp}
+  const unitTxt=u?(['cup','clove','can','slice','bunch','stick','piece','sprig','head','package','pkg'].includes(u)?plural(q,u):u)+' ':'';
+  return `${fmtN(q)} ${unitTxt}${it.fam==='n'?plural(q,it.name):it.name}`;
+}
 function renderShop(){
   const end=new Date(week);end.setDate(end.getDate()+6);
   const f=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
@@ -781,9 +815,11 @@ function renderShop(){
     (plan[ymd(d)]||[]).forEach(e=>{
       const r=byId(e.id);if(!r)return;
       r.ing.forEach(t=>{
-        const k=t.toLowerCase().replace(/\s+/g,' ').trim();
-        const it=items.get(k)||{text:t,n:0,from:new Set()};
-        it.n++;it.from.add(r.title);items.set(k,it);
+        const p=parseIng(t),k=p?p.name+'|'+p.fam:t.toLowerCase().replace(/\s+/g,' ').trim();
+        const it=items.get(k)||{text:t,n:0,from:new Set(),base:0};
+        if(p){it.base+=p.qty;it.fam=p.fam;it.name=p.name;it.disp=it.disp||p.disp;it.text=fmtItem(it);it.parsed=true}
+        else it.n++;
+        it.from.add(r.title);items.set(k,it);
       });
     });
   }
@@ -795,7 +831,7 @@ function renderShop(){
     l.innerHTML='<input type="checkbox"><span></span><em></em>';
     const cb=l.querySelector('input');cb.checked=!!checked[key];
     l.querySelector('span').textContent=it.text;
-    l.querySelector('em').textContent=it.n>1?`×${it.n}`:'';
+    l.querySelector('em').textContent=!it.parsed&&it.n>1?`×${it.n}`:'';
     l.title='For: '+[...it.from].join(', ');
     cb.onchange=()=>{if(cb.checked)checked[key]=1;else delete checked[key];try{localStorage.setItem(GKEY,JSON.stringify(checked))}catch{}};
     box.appendChild(l);
