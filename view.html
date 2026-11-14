@@ -219,14 +219,23 @@ function fillForm(r){
   if(r.ing&&r.ing.length)$('ing').value=r.ing.join('\n');
   if(r.steps&&r.steps.length)$('steps').value=r.steps.join('\n');
 }
-const HEAD=/^#*\s*(?:[il1]ngred[il1]ents?|directions?|instructions?|method|steps?|preparation)\b[\s:]*$/i;
+// Headings are often letter-spaced ("I N G R E D I E N T S"), so compare with everything but letters removed.
+function headKind(l){
+  if(l.length>30)return null;
+  const c=l.replace(/[^A-Za-z]/g,'').toLowerCase();
+  if(/^[il]ngred[il]ents?$/.test(c))return 'ing';
+  if(/^(directions?|instructions?|method|steps?|preparation)$/.test(c))return 'steps';
+  if(/^(notes?|nutrition|tips?|storage|description|serves|yield)$/.test(c))return 'other';
+  return null;
+}
+const HEAD={test:l=>!!headKind(l)};
 function tidyOcr(text){
   const t=text.replace(/\ufb01/g,'fi').replace(/\ufb02/g,'fl').replace(/[‘’]/g,"'").replace(/[“”]/g,'"')
     .replace(/\b[lI|](?=\/\d)/g,'1').replace(/(\d)\s*[lI|](?=\s|$)/g,'$11').replace(/(?<=[a-z])[|¦](?=[a-z])/g,'l').replace(/[|¦]/g,'I');
   const out=[];
   for(const raw of t.split('\n')){
     const l=raw.replace(/[ \t]+/g,' ').trim();
-    if(!l||/^[^\w½¼¾⅓⅔⅛]+$/.test(l)){continue}
+    if(!l||/^[^\w½¼¾⅓⅔⅛]+$/.test(l)||!headKind(l)&&!/[A-Za-z]{3}/.test(l)){continue}
     const p=out[out.length-1];
     if(p&&/-$/.test(p)&&/^[a-z]/.test(l))out[out.length-1]=p.slice(0,-1)+l;
     else if(p&&/^[a-z(]/.test(l)&&!/[.!?:]$/.test(p)&&!HEAD.test(p)&&!HEAD.test(l))out[out.length-1]=p+' '+l;
@@ -236,22 +245,23 @@ function tidyOcr(text){
 }
 function parseRecipeText(text){
   const L=tidyOcr(text);
-  const isIng=l=>/^[il1]ngred[il1]ents?\b[\s:]*$/i.test(l.replace(/^#+\s*/,''));
-  const isSteps=l=>/^(directions?|instructions?|method|steps?|preparation)\b[\s:]*$/i.test(l.replace(/^#+\s*/,''));
-  const i=L.findIndex(isIng),s=L.findIndex(isSteps);
+  const kinds=L.map(headKind);
+  const i=kinds.indexOf('ing'),st=kinds.indexOf('steps');
   let title='',ing=[],steps=[];
-  if(i>=0||s>=0){
-    const first=Math.min(...[i,s].filter(n=>n>=0));
+  if(i>=0||st>=0){
+    const first=kinds.findIndex(Boolean);
     title=L.slice(0,first).find(l=>l.length<80)||'';
-    const seg=(a,b)=>L.slice(a+1,b>a?b:undefined);
-    if(i>=0)ing=seg(i,s>i?s:-1);
-    if(s>=0)steps=seg(s,i>s?i:-1);
+    // A section runs until the next heading of any kind (Notes, Nutrition…).
+    const seg=a=>{let e=kinds.findIndex((k,j)=>j>a&&k);if(e<0)e=L.length;return L.slice(a+1,e)};
+    if(i>=0)ing=seg(i);
+    if(st>=0)steps=seg(st);
   }else{
     title=L[0]&&L[0].length<80?L[0]:'';
     const body=title?L.slice(1):L;
     const qty=/^(?:[-*•·▪]\s*)?(?:\d|[½¼¾⅓⅔⅛]|a\s|an\s|one\s|pinch|dash)/i;
     body.forEach(l=>(qty.test(l)&&l.length<70&&!/^\d+[.)]\s/.test(l)?ing:steps).push(l));
   }
+  if(title&&title===title.toUpperCase())title=title.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
   return {title:clean(title),ing:ing.map(clean).filter(Boolean),steps:steps.map(clean).filter(Boolean)};
 }
 function stepsFrom(x){
@@ -399,6 +409,23 @@ async function preprocess(src){
   x.putImageData(id,0,0);
   return c;
 }
+// Drop low-confidence words (photos, decoration) and stray fragments after a wide gap on the same line.
+function ocrLines(data){
+  if(!data.lines||!data.lines.length)return data.text||'';
+  return data.lines.map(l=>{
+    const ws=(l.words||[]).filter(w=>w.confidence>=65&&/[A-Za-z0-9½¼¾⅓⅔⅛]/.test(w.text));
+    const h=l.bbox.y1-l.bbox.y0,kept=[];
+    for(let k=0;k<ws.length;k++){
+      const p=kept[kept.length-1];
+      if(p&&ws[k].bbox.x0-p.bbox.x1>h*2.5){
+        const rest=ws.slice(k);
+        if(rest.length<3||rest.reduce((a,w)=>a+w.confidence,0)/rest.length<80)break;
+      }
+      kept.push(ws[k]);
+    }
+    return kept.map(w=>w.text).join(' ');
+  }).join('\n');
+}
 async function recognize(T,canvas){
   const worker=await T.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')status(`Reading photo… ${Math.round(m.progress*100)}%`)}});
   try{
@@ -421,7 +448,7 @@ $('scanBtn').onclick=async()=>{
     const T=await loadTesseract();
     status('Preparing photo…');
     const data=await recognize(T,await preprocess(src));
-    const r=parseRecipeText(data.text||'');
+    const r=parseRecipeText(ocrLines(data));
     if(!r.ing.length&&!r.steps.length&&!r.title){status('No text found in that photo.');return}
     fillForm(r);status('Text read from photo — check for mistakes and save.');
   }catch(e){status(e.message||'Could not read the photo.')}
