@@ -86,6 +86,9 @@ ul,ol{margin:0;padding-left:20px}li{margin:2px 0}
 .meal .th{flex:none;width:44px;height:44px;border-radius:9px;background:var(--bg) center/cover;display:flex;align-items:center;justify-content:center;font-size:22px}
 .meal span{flex:1;font-weight:500}
 .meal .del{margin:0}
+.slot{display:grid;gap:6px}
+.slot h3{margin:4px 0 0;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.slot select{width:100%;padding:10px;font:inherit;font-size:14px;color:var(--muted);background:var(--bg);border:1px dashed var(--line);border-radius:10px}
 select{width:100%;padding:12px;min-height:46px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px}
 .hint{color:var(--muted);font-size:14px}
 html[data-mode=view] .editonly,html[data-auth=out] .editonly,html[data-mode=view] .signin,.signin{display:none!important}
@@ -133,7 +136,6 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     <div class="card plan">
       <h2 id="selTitle"></h2>
       <div id="meals" class="list" style="gap:8px"></div>
-      <select id="addMeal" class="editonly" aria-label="Add recipe to this day"></select>
     </div>
   </section>
 </main>
@@ -409,7 +411,7 @@ $('list').addEventListener('click',e=>{
   }else if(e.target.classList.contains('del')){
     if(editing==c.dataset.id)resetForm();
     recipes=recipes.filter(r=>r.id!=c.dataset.id);
-    for(const k in plan){plan[k]=plan[k].filter(id=>id!=c.dataset.id);if(!plan[k].length)delete plan[k]}
+    for(const k in plan){plan[k]=plan[k].filter(e=>e.id!=c.dataset.id);if(!plan[k].length)delete plan[k]}
     save();savePlan();
     c.classList.add('out');setTimeout(render,250);
   }
@@ -422,10 +424,22 @@ const today=new Date();
 let plan;
 if(!REMOTE)try{plan=JSON.parse(localStorage.getItem(PKEY))}catch{}
 if(REMOTE)plan={};
+const SLOTS=[['breakfast','Breakfast'],['snack1','Morning snack'],['lunch','Lunch'],['snack2','Afternoon snack'],['dinner','Dinner']];
+// Older plans stored bare recipe ids per day; treat those as dinner.
+function normPlan(p){
+  const out={};
+  if(!p||typeof p!=='object'||Array.isArray(p))return out;
+  for(const k in p){
+    if(!Array.isArray(p[k]))continue;
+    const a=p[k].map(x=>x&&typeof x==='object'?{id:x.id,slot:SLOTS.some(s=>s[0]===x.slot)?x.slot:'dinner'}:{id:x,slot:'dinner'});
+    if(a.length)out[k]=a;
+  }
+  return out;
+}
 if(!plan||typeof plan!=='object'||Array.isArray(plan)){
   if(VIEW)plan={};else{const t=new Date(today);t.setDate(t.getDate()+1);
-  plan={[ymd(today)]:[1],[ymd(t)]:[2,3]};savePlan();}
-}
+  plan={[ymd(today)]:[{id:1,slot:'dinner'}],[ymd(t)]:[{id:2,slot:'breakfast'},{id:3,slot:'lunch'}]};savePlan();}
+}else plan=normPlan(plan);
 function savePlan(){
   if(REMOTE){fs.setDoc(fs.doc(db,'meta','plan'),{json:JSON.stringify(plan)}).catch(fail);return}
   try{localStorage.setItem(PKEY,JSON.stringify(plan))}catch{}
@@ -444,7 +458,7 @@ function renderCal(){
     const k=ymd(d),b=document.createElement('button');
     b.className='day'+(d.getMonth()!==view.getMonth()?' other':'')+(k===ymd(today)?' today':'')+(k===sel?' sel':'');
     b.dataset.date=k;b.textContent=d.getDate();
-    const n=(plan[k]||[]).filter(byId).length;
+    const n=(plan[k]||[]).filter(e=>byId(e.id)).length;
     if(n){const dots=document.createElement('i');dots.innerHTML='<b></b>'.repeat(Math.min(n,3));b.appendChild(dots)}
     g.appendChild(b);
   }
@@ -454,21 +468,30 @@ function renderDay(){
   const [y,m,d]=sel.split('-').map(Number);
   $('selTitle').textContent=new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   const list=$('meals');list.innerHTML='';
-  const ids=(plan[sel]||[]).filter(byId);
-  if(!ids.length)list.innerHTML='<div class="hint">Nothing planned yet.</div>';
-  ids.forEach(id=>{
-    const r=byId(id),m=document.createElement('div');
-    m.className='meal';m.dataset.id=id;
-    m.innerHTML='<div class="th"></div><span></span><button class="del editonly" aria-label="Remove from day">×</button>';
-    const th=m.querySelector('.th');
-    if(r.photo)th.style.backgroundImage=`url(${r.photo})`;else th.textContent=r.emoji||'🍽️';
-    m.querySelector('span').textContent=r.title;
-    list.appendChild(m);
+  const entries=(plan[sel]||[]).map((e,i)=>({...e,i})).filter(e=>byId(e.id));
+  SLOTS.forEach(([key,label])=>{
+    const sec=document.createElement('div');sec.className='slot';
+    const h=document.createElement('h3');h.textContent=label;sec.appendChild(h);
+    entries.filter(e=>e.slot===key).forEach(e=>{
+      const r=byId(e.id),m=document.createElement('div');
+      m.className='meal';m.dataset.idx=e.i;
+      m.innerHTML='<div class="th"></div><span></span><button class="del editonly" aria-label="Remove from day">×</button>';
+      const th=m.querySelector('.th');
+      if(r.photo)th.style.backgroundImage=`url(${r.photo})`;else th.textContent=r.emoji||'🍽️';
+      m.querySelector('span').textContent=r.title;
+      sec.appendChild(m);
+    });
+    if(!VIEW&&recipes.length){
+      const sl=document.createElement('select');sl.className='editonly add';sl.dataset.slot=key;
+      sl.setAttribute('aria-label','Add recipe to '+label.toLowerCase());
+      sl.innerHTML='<option value="">＋ Add a recipe…</option>';
+      recipes.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.title;sl.appendChild(o)});
+      sec.appendChild(sl);
+    }else if(!entries.some(e=>e.slot===key)){
+      const hint=document.createElement('div');hint.className='hint';hint.textContent='Nothing planned.';sec.appendChild(hint);
+    }
+    list.appendChild(sec);
   });
-  const sl=$('addMeal');
-  sl.innerHTML='<option value="">＋ Add a recipe…</option>';
-  recipes.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.title;sl.appendChild(o)});
-  sl.hidden=VIEW||!recipes.length;
 }
 $('grid').addEventListener('click',e=>{
   const b=e.target.closest('.day');if(!b)return;
@@ -479,14 +502,14 @@ $('grid').addEventListener('click',e=>{
 });
 $('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCal()};
 $('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCal()};
-$('addMeal').onchange=e=>{
-  const id=e.target.value;if(!id)return;
-  (plan[sel]=plan[sel]||[]).push(id);savePlan();renderCal();
-};
+$('meals').addEventListener('change',e=>{
+  const sl=e.target.closest('select.add');if(!sl||!sl.value)return;
+  (plan[sel]=plan[sel]||[]).push({id:sl.value,slot:sl.dataset.slot});savePlan();renderCal();
+});
 $('meals').addEventListener('click',e=>{
   if(!e.target.classList.contains('del'))return;
-  const id=e.target.closest('.meal').dataset.id;
-  plan[sel]=plan[sel].filter(x=>x!=id);if(!plan[sel].length)delete plan[sel];
+  const idx=Number(e.target.closest('.meal').dataset.idx);
+  plan[sel].splice(idx,1);if(!plan[sel].length)delete plan[sel];
   savePlan();renderCal();
 });
 document.querySelector('.tabs').addEventListener('click',e=>{
@@ -511,8 +534,8 @@ function renderShop(){
   const wk=ymd(week),items=new Map();
   for(let i=0;i<7;i++){
     const d=new Date(week);d.setDate(d.getDate()+i);
-    (plan[ymd(d)]||[]).forEach(id=>{
-      const r=byId(id);if(!r)return;
+    (plan[ymd(d)]||[]).forEach(e=>{
+      const r=byId(e.id);if(!r)return;
       r.ing.forEach(t=>{
         const k=t.toLowerCase().replace(/\s+/g,' ').trim();
         const it=items.get(k)||{text:t,n:0,from:new Set()};
@@ -545,7 +568,7 @@ if(REMOTE){
     refresh();
   },fail);
   fs.onSnapshot(fs.doc(db,'meta','plan'),d=>{
-    try{plan=d.exists()?JSON.parse(d.data().json):{}}catch{plan={}}
+    try{plan=normPlan(d.exists()?JSON.parse(d.data().json):{})}catch{plan={}}
     refresh();
   },fail);
   if(!VIEW){
