@@ -36,6 +36,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 button.scan{padding:11px 16px}
 .imp button:active,button.scan:active{transform:scale(.97);opacity:.7}
 .imp button:disabled,button.scan:disabled{opacity:.5;cursor:wait}
+#busy{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:rgba(0,0,0,.55);color:#fff;font-size:22px;font-weight:600;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#busy[hidden]{display:none}
+#busy i{width:44px;height:44px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 #status{font-size:13px;color:var(--muted);min-height:0}
 #status:empty{display:none}
 button.save{padding:12px;min-height:46px;font:inherit;font-size:15px;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;cursor:pointer;transition:transform .1s,opacity .2s}
@@ -172,6 +176,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     </div>
   </section>
 </main>
+<div id="busy" role="alert" aria-live="polite" hidden><i></i><span id="busyMsg"></span></div>
 <dialog class="confirm" id="confirmDlg"><form method="dialog"><h2>Delete recipe?</h2><p id="confirmMsg"></p><div class="row"><button value="cancel" autofocus>Cancel</button><button value="ok" class="danger">Delete</button></div></form></dialog>
 <script src="firebase-config.js"></script>
 <script type="module">
@@ -245,6 +250,8 @@ drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');pick(e.dataTran
 const lines=s=>s.split('\n').map(x=>x.trim()).filter(Boolean);
 
 const status=m=>{$('status').textContent=m||''};
+// Full-screen blocking overlay for long operations; pass nothing to dismiss.
+const busy=m=>{$('busy').hidden=!m;$('busyMsg').textContent=m||'';document.querySelector('main').inert=!!m};
 const BULLET=/^\s*(?:[-*•·▪◦□☐]|\d+[.)])\s+/;
 const clean=s=>s.replace(BULLET,'').replace(/\s+/g,' ').trim();
 const decode=s=>new DOMParser().parseFromString(String(s),'text/html').documentElement.textContent;
@@ -391,7 +398,7 @@ $('importBtn').onclick=async()=>{
   let u=$('url').value.trim();if(!u)return;
   if(!/^https?:\/\//i.test(u))u='https://'+u;
   try{u=cleanUrl(u)}catch{status('That does not look like a valid link.');return}
-  const b=$('importBtn');b.disabled=true;status('Importing recipe…');
+  const b=$('importBtn');b.disabled=true;busy('Importing recipe…');
   try{
     const r=await fetchRecipe(u);
     if(r===undefined){status('Could not reach that page — the site may block imports. Try copying the recipe text instead.');return}
@@ -400,7 +407,7 @@ $('importBtn').onclick=async()=>{
     await setImage(r.image,u);
     status(r.fromText?'Imported from page text — please double-check the ingredients and steps.':'Imported — review and save.');$('url').value='';
   }catch(e){status(e.message)}
-  finally{b.disabled=false}
+  finally{b.disabled=false;busy('')}
 };
 async function setImage(src,base){
   if(!src||photo)return;
@@ -466,7 +473,7 @@ async function applyCandidate(r){
 }
 $('searchBtn').onclick=async()=>{
   const q=$('q').value.trim();if(!q)return;
-  const b=$('searchBtn');b.disabled=true;$('nextBtn').hidden=true;status(`Searching for the best “${q}” recipe…`);
+  const b=$('searchBtn');b.disabled=true;$('nextBtn').hidden=true;status('');busy(`Searching for the best “${q}” recipe…`);
   try{
     // Query both sources together so a weak match in one doesn't hide a better one in the other.
     const [m,w]=await Promise.all([mealDb(q).catch(()=>[]),webSearch(q).catch(()=>[])]);
@@ -474,7 +481,7 @@ $('searchBtn').onclick=async()=>{
     if(!cands.length){status(`No recipe found for “${q}”. Try a different name or paste a link.`);return}
     await applyCandidate(cands[0]);$('q').value='';
   }catch(e){status(e.message)}
-  finally{b.disabled=false}
+  finally{b.disabled=false;busy('')}
 };
 $('nextBtn').onclick=async()=>{
   if(cands.length<2)return;
@@ -545,7 +552,7 @@ function ocrLines(data){
   }).join('\n');
 }
 async function recognize(T,canvas){
-  const worker=await T.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')status(`Reading photo… ${Math.round(m.progress*100)}%`)}});
+  const worker=await T.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')busy(`Reading image… ${Math.round(m.progress*100)}%`)}});
   try{
     await worker.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300'});
     let best=null;
@@ -561,16 +568,16 @@ async function recognize(T,canvas){
 }
 $('scanBtn').onclick=async()=>{
   const src=photoFile||photo;if(!src)return;
-  const b=$('scanBtn');b.disabled=true;status('Loading text reader…');
+  const b=$('scanBtn');b.disabled=true;status('');busy('Reading image…');
   try{
     const T=await loadTesseract();
-    status('Preparing photo…');
+    busy('Reading image…');
     const data=await recognize(T,await preprocess(src));
     const r=parseRecipeText(ocrLines(data));
     if(!r.ing.length&&!r.steps.length&&!r.title){status('No text found in that photo.');return}
     fillForm(r);status('Text read from photo — check for mistakes and save.');
   }catch(e){status(e.message||'Could not read the photo.')}
-  finally{b.disabled=false}
+  finally{b.disabled=false;busy('')}
 };
 function card(r){
   const d=document.createElement('article');
