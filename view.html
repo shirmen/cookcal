@@ -29,6 +29,12 @@ input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px color
 .drop:hover,.drop.over{border-color:var(--accent);color:var(--accent)}
 .drop input{display:none}
 .drop.has span{background:rgba(0,0,0,.55);color:#fff;padding:3px 10px;border-radius:99px;font-size:12px}
+.imp{display:flex;gap:8px}
+.imp button,button.scan{padding:0 14px;min-height:46px;font:inherit;font-size:14px;font-weight:600;color:var(--accent);background:var(--bg);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+button.scan{padding:10px 14px}
+.imp button:disabled,button.scan:disabled{opacity:.6;cursor:wait}
+#status{font-size:13px;color:var(--muted);min-height:0}
+#status:empty{display:none}
 button.save{padding:14px;min-height:48px;font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:10px;cursor:pointer;transition:transform .1s,opacity .2s}
 button.save:hover{opacity:.9}button.save:active{transform:scale(.98)}
 .list{display:grid;gap:14px}
@@ -98,7 +104,10 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
   <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
   <section id="recipesView">
   <form id="form" class="editonly">
+    <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import" aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
     <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a photo</span></label>
+    <button class="scan" type="button" id="scanBtn" hidden>✨ Read recipe text from photo</button>
+    <div id="status" role="status"></div>
     <label class="f">Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required></label>
     <label class="f">Ingredients (one per line)<textarea id="ing" rows="3" required></textarea></label>
     <label class="f">Steps (one per line)<textarea id="steps" rows="3" required></textarea></label>
@@ -182,8 +191,10 @@ function shrink(file){
     img.src=url;
   });
 }
+let photoFile=null;
 async function pick(f){
   if(!f||!f.type.startsWith('image/'))return;
+  photoFile=f;$('scanBtn').hidden=false;
   photo=await shrink(f);
   $('drop').style.backgroundImage=`url(${photo})`;
   $('drop').classList.add('has');$('drop').querySelector('span').textContent='Change photo';
@@ -195,6 +206,114 @@ drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');pick(e.dataTransfer.files[0])};
 
 const lines=s=>s.split('\n').map(x=>x.trim()).filter(Boolean);
+
+const status=m=>{$('status').textContent=m||''};
+const BULLET=/^\s*(?:[-*•·▪◦□☐]|\d+[.)])\s+/;
+const clean=s=>s.replace(BULLET,'').replace(/\s+/g,' ').trim();
+const decode=s=>new DOMParser().parseFromString(String(s),'text/html').documentElement.textContent;
+function fillForm(r){
+  if(r.title)$('title').value=r.title;
+  if(r.ing&&r.ing.length)$('ing').value=r.ing.join('\n');
+  if(r.steps&&r.steps.length)$('steps').value=r.steps.join('\n');
+}
+function parseRecipeText(text){
+  const L=text.split('\n').map(x=>x.trim()).filter(Boolean);
+  const isIng=l=>/^ingredients?\b[\s:]*$/i.test(l.replace(/^#+\s*/,''));
+  const isSteps=l=>/^(directions?|instructions?|method|steps?|preparation)\b[\s:]*$/i.test(l.replace(/^#+\s*/,''));
+  const i=L.findIndex(isIng),s=L.findIndex(isSteps);
+  let title='',ing=[],steps=[];
+  if(i>=0||s>=0){
+    const first=Math.min(...[i,s].filter(n=>n>=0));
+    title=L.slice(0,first).find(l=>l.length<80)||'';
+    const seg=(a,b)=>L.slice(a+1,b>a?b:undefined);
+    if(i>=0)ing=seg(i,s>i?s:-1);
+    if(s>=0)steps=seg(s,i>s?i:-1);
+  }else{
+    title=L[0]&&L[0].length<80?L[0]:'';
+    const body=title?L.slice(1):L;
+    const qty=/^(?:[-*•·▪]\s*)?(?:\d|[½¼¾⅓⅔⅛]|a\s|an\s|one\s|pinch|dash)/i;
+    body.forEach(l=>(qty.test(l)&&l.length<70&&!/^\d+[.)]\s/.test(l)?ing:steps).push(l));
+  }
+  return {title:clean(title),ing:ing.map(clean).filter(Boolean),steps:steps.map(clean).filter(Boolean)};
+}
+function stepsFrom(x){
+  if(!x)return[];
+  if(typeof x==='string')return x.split('\n');
+  if(Array.isArray(x))return x.flatMap(stepsFrom);
+  if(x.itemListElement)return stepsFrom(x.itemListElement);
+  return stepsFrom(x.text||x.name);
+}
+function findRecipeNode(n){
+  if(!n||typeof n!=='object')return null;
+  if(Array.isArray(n)){for(const c of n){const r=findRecipeNode(c);if(r)return r}return null}
+  const t=[].concat(n['@type']||[]);
+  if(t.includes('Recipe'))return n;
+  return findRecipeNode(n['@graph']);
+}
+function recipeFromHtml(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  for(const s of doc.querySelectorAll('script[type="application/ld+json"]')){
+    let j;try{j=JSON.parse(s.textContent)}catch{continue}
+    const n=findRecipeNode(j);if(!n)continue;
+    let img=n.image;if(Array.isArray(img))img=img[0];if(img&&img.url)img=img.url;
+    return {
+      title:decode(n.name||'').trim(),
+      ing:[].concat(n.recipeIngredient||[]).map(x=>clean(decode(x))).filter(Boolean),
+      steps:stepsFrom(n.recipeInstructions).map(x=>clean(decode(x))).filter(Boolean),
+      image:typeof img==='string'?img:null
+    };
+  }
+  return null;
+}
+const PROXIES=[u=>u,u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)];
+async function fetchVia(url,kind){
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p(url));
+      if(r.ok)return await r[kind]();
+    }catch{}
+  }
+  throw new Error('Could not fetch that page.');
+}
+$('importBtn').onclick=async()=>{
+  let u=$('url').value.trim();if(!u)return;
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{new URL(u)}catch{status('That does not look like a valid link.');return}
+  const b=$('importBtn');b.disabled=true;status('Importing recipe…');
+  try{
+    const r=recipeFromHtml(await fetchVia(u,'text'));
+    if(!r||!(r.ing.length||r.steps.length)){status('No recipe data found on that page. Try copying the text instead.');return}
+    fillForm(r);
+    if(r.image&&!photo){
+      try{
+        photo=await shrink(await fetchVia(new URL(r.image,u).href,'blob'));
+        drop.style.backgroundImage=`url(${photo})`;drop.classList.add('has');drop.querySelector('span').textContent='Change photo';
+      }catch{}
+    }
+    status('Imported — review and save.');$('url').value='';
+  }catch(e){status(e.message)}
+  finally{b.disabled=false}
+};
+let tessLoad;
+const loadTesseract=()=>tessLoad||(tessLoad=new Promise((res,rej)=>{
+  if(window.Tesseract)return res(window.Tesseract);
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  s.onload=()=>res(window.Tesseract);s.onerror=()=>{tessLoad=null;rej(new Error('Could not load the text reader (offline?).'))};
+  document.head.appendChild(s);
+}));
+$('scanBtn').onclick=async()=>{
+  const src=photoFile||photo;if(!src)return;
+  const b=$('scanBtn');b.disabled=true;status('Loading text reader…');
+  try{
+    const T=await loadTesseract();
+    const {data}=await T.recognize(src,'eng',{logger:m=>{if(m.status==='recognizing text')status(`Reading photo… ${Math.round(m.progress*100)}%`)}});
+    const r=parseRecipeText(data.text||'');
+    if(!r.ing.length&&!r.steps.length&&!r.title){status('No text found in that photo.');return}
+    fillForm(r);status('Text read from photo — check for mistakes and save.');
+  }catch(e){status(e.message||'Could not read the photo.')}
+  finally{b.disabled=false}
+};
 function card(r){
   const d=document.createElement('article');
   d.className='card';d.dataset.id=r.id;
@@ -216,6 +335,7 @@ let editing=null;
 function resetForm(){
   editing=null;$('form').reset();photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
   drop.querySelector('span').textContent='📷 Upload a photo';
+  photoFile=null;$('scanBtn').hidden=true;status('');
   $('saveBtn').textContent='Save recipe';$('cancelEdit').hidden=true;
 }
 $('form').onsubmit=e=>{
@@ -235,7 +355,7 @@ $('list').addEventListener('click',e=>{
     const o=c.classList.toggle('open');e.target.textContent=o?'Hide recipe':'View recipe';
   }else if(e.target.classList.contains('edit')){
     const r=recipes.find(x=>x.id==c.dataset.id);
-    editing=r.id;photo=r.photo||null;
+    editing=r.id;photo=r.photo||null;photoFile=null;$('scanBtn').hidden=!photo;
     $('title').value=r.title;$('ing').value=r.ing.join('\n');$('steps').value=r.steps.join('\n');
     drop.style.backgroundImage=photo?`url(${photo})`:'';drop.classList.toggle('has',!!photo);
     drop.querySelector('span').textContent=photo?'Change photo':'📷 Upload a photo';
