@@ -313,27 +313,76 @@ function recipeFromHtml(html){
   }
   return null;
 }
-const PROXIES=[u=>u,u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)];
+// Free CORS proxies come and go, so try several; `json` ones wrap the page in {contents}.
+const PROXIES=[
+  {u:u=>u},
+  {u:u=>'https://corsproxy.io/?url='+encodeURIComponent(u)},
+  {u:u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)},
+  {u:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
+  {u:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u),json:true},
+  {u:u=>'https://thingproxy.freeboard.io/fetch/'+u}
+];
+async function timedFetch(url,ms=12000){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);
+  try{return await fetch(url,{signal:c.signal})}finally{clearTimeout(t)}
+}
 async function fetchVia(url,kind){
   for(const p of PROXIES){
+    if(p.json&&kind!=='text')continue;
     try{
-      const r=await fetch(p(url));
-      if(r.ok)return await r[kind]();
+      const r=await timedFetch(p.u(url));
+      if(!r.ok)continue;
+      if(p.json)return (await r.json()).contents||'';
+      return await r[kind]();
     }catch{}
   }
   throw new Error('Could not fetch that page.');
 }
+// Drop tracking parameters and fragments so share links (e.g. from Instagram) resolve to the plain page.
+function cleanUrl(u){
+  const x=new URL(u);x.hash='';
+  [...x.searchParams.keys()].filter(k=>/^(utm_|fbclid|igshid|igsh|gclid|mc_|ref$)/i.test(k)).forEach(k=>x.searchParams.delete(k));
+  return x.href;
+}
+// Try every proxy until one returns a page that actually contains recipe data (some return bot-check pages).
+async function fetchRecipe(url){
+  let reached=false;
+  for(const p of PROXIES){
+    try{
+      const r=await timedFetch(p.u(url));
+      if(!r.ok)continue;
+      const html=p.json?(await r.json()).contents||'':await r.text();
+      if(!html)continue;
+      reached=true;
+      const rec=recipeFromHtml(html);
+      if(rec&&(rec.ing.length||rec.steps.length))return rec;
+    }catch{}
+  }
+  // Last resort: a reader service that returns the page as plain text, parsed by headings.
+  try{
+    const r=await timedFetch('https://r.jina.ai/'+url,20000);
+    if(r.ok){
+      const t=await r.text(),rec=parseRecipeText(t.replace(/^(?:Title|URL Source|Markdown Content):.*$/gm,'').replace(/\[([^\]]*)\]\([^)]*\)/g,'$1').replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/[*_`]/g,''));
+      const t0=(t.match(/^Title:\s*(.+)$/m)||[])[1];
+      if(t0&&!rec.title)rec.title=clean(t0);
+      if(rec.ing.length&&rec.steps.length){rec.fromText=true;return rec}
+      reached=true;
+    }
+  }catch{}
+  return reached?null:undefined;
+}
 $('importBtn').onclick=async()=>{
   let u=$('url').value.trim();if(!u)return;
   if(!/^https?:\/\//i.test(u))u='https://'+u;
-  try{new URL(u)}catch{status('That does not look like a valid link.');return}
+  try{u=cleanUrl(u)}catch{status('That does not look like a valid link.');return}
   const b=$('importBtn');b.disabled=true;status('Importing recipe…');
   try{
-    const r=recipeFromHtml(await fetchVia(u,'text'));
-    if(!r||!(r.ing.length||r.steps.length)){status('No recipe data found on that page. Try copying the text instead.');return}
+    const r=await fetchRecipe(u);
+    if(r===undefined){status('Could not reach that page — the site may block imports. Try copying the recipe text instead.');return}
+    if(!r){status('No recipe data found on that page. Try copying the text instead.');return}
     fillForm(r);
     await setImage(r.image,u);
-    status('Imported — review and save.');$('url').value='';
+    status(r.fromText?'Imported from page text — please double-check the ingredients and steps.':'Imported — review and save.');$('url').value='';
   }catch(e){status(e.message)}
   finally{b.disabled=false}
 };
