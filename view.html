@@ -40,7 +40,10 @@ button.scan{padding:11px 16px}
 #status:empty{display:none}
 button.save{padding:12px;min-height:46px;font:inherit;font-size:15px;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;cursor:pointer;transition:transform .1s,opacity .2s}
 button.save:hover{opacity:.9}button.save:active{transform:scale(.98);opacity:.8}
-.list{display:grid;gap:16px}
+.list{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+.list::-webkit-scrollbar{display:none}
+.list>.card{flex:0 0 86%;scroll-snap-align:center}
+.list>.empty{flex:1}
 .card{cursor:pointer;overflow:hidden;animation:in .3s ease;transition:opacity .25s,transform .25s}
 .card.out{opacity:0;transform:scale(.97)}
 @keyframes in{from{opacity:0;transform:translateY(-6px)}}
