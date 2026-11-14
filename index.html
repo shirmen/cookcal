@@ -43,7 +43,11 @@ button.save:hover{opacity:.9}button.save:active{transform:scale(.98);opacity:.8}
 .list{display:grid;gap:16px}
 #list{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
 #list::-webkit-scrollbar{display:none}
-#list>.card{flex:0 0 86%;scroll-snap-align:center}
+#list>.card{flex:0 0 100%;scroll-snap-align:start}
+.dots{display:flex;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.dots:empty{display:none}
+.dots button{width:7px;height:7px;padding:0;border:0;border-radius:50%;background:var(--line);cursor:pointer;transition:background .2s,transform .2s}
+.dots button.on{background:var(--accent);transform:scale(1.25)}
 #list>.empty{flex:1}
 .card{cursor:pointer;overflow:hidden;animation:in .3s ease;transition:opacity .25s,transform .25s}
 .card.out{opacity:0;transform:scale(.97)}
@@ -139,6 +143,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
   </form>
   <div class="list" id="list"></div>
+  <div class="dots" id="dots"></div>
   <button class="sec share editonly" id="signout" hidden>Sign out</button>
   <button class="sec share signin" id="signin">🔒 Owner sign-in</button>
   </section>
@@ -571,10 +576,18 @@ function card(r){
   fill('ul',r.ing);fill('ol',r.steps);
   return d;
 }
+function markDot(){
+  const l=$('list'),i=Math.round(l.scrollLeft/(l.clientWidth+12));
+  [...$('dots').children].forEach((b,j)=>b.classList.toggle('on',j===i));
+}
+$('list').addEventListener('scroll',markDot,{passive:true});
 function render(){
   const l=$('list');l.innerHTML='';
   if(!recipes.length)l.innerHTML='<div class="empty">No recipes yet.</div>';
   recipes.forEach(r=>l.appendChild(card(r)));
+  const dots=$('dots');dots.innerHTML='';
+  if(recipes.length>1)recipes.forEach((r,i)=>{const b=document.createElement('button');b.setAttribute('aria-label','Recipe '+(i+1)+': '+r.title);b.onclick=()=>l.scrollTo({left:i*(l.clientWidth+12),behavior:'smooth'});dots.appendChild(b)});
+  markDot();
   $('count').textContent=`${recipes.length} saved recipe${recipes.length===1?'':'s'}`;
 }
 let editing=null;
