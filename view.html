@@ -104,6 +104,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
   <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
   <section id="recipesView">
   <form id="form" class="editonly">
+    <div class="imp"><input type="text" id="q" placeholder="Find the best recipe by food name" aria-label="Food name"><button type="button" id="searchBtn">Search</button></div>
     <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import" aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
     <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a photo</span></label>
     <button class="scan" type="button" id="scanBtn" hidden>✨ Read recipe text from photo</button>
@@ -260,7 +261,9 @@ function recipeFromHtml(html){
       title:decode(n.name||'').trim(),
       ing:[].concat(n.recipeIngredient||[]).map(x=>clean(decode(x))).filter(Boolean),
       steps:stepsFrom(n.recipeInstructions).map(x=>clean(decode(x))).filter(Boolean),
-      image:typeof img==='string'?img:null
+      image:typeof img==='string'?img:null,
+      rating:Number(n.aggregateRating&&n.aggregateRating.ratingValue)||0,
+      votes:Number(n.aggregateRating&&(n.aggregateRating.ratingCount||n.aggregateRating.reviewCount))||0
     };
   }
   return null;
@@ -284,16 +287,58 @@ $('importBtn').onclick=async()=>{
     const r=recipeFromHtml(await fetchVia(u,'text'));
     if(!r||!(r.ing.length||r.steps.length)){status('No recipe data found on that page. Try copying the text instead.');return}
     fillForm(r);
-    if(r.image&&!photo){
-      try{
-        photo=await shrink(await fetchVia(new URL(r.image,u).href,'blob'));
-        drop.style.backgroundImage=`url(${photo})`;drop.classList.add('has');drop.querySelector('span').textContent='Change photo';
-      }catch{}
-    }
+    await setImage(r.image,u);
     status('Imported — review and save.');$('url').value='';
   }catch(e){status(e.message)}
   finally{b.disabled=false}
 };
+async function setImage(src,base){
+  if(!src||photo)return;
+  try{
+    photo=await shrink(await fetchVia(new URL(src,base).href,'blob'));
+    drop.style.backgroundImage=`url(${photo})`;drop.classList.add('has');drop.querySelector('span').textContent='Change photo';
+  }catch{}
+}
+const score=r=>(r.rating&&r.votes?r.rating*Math.log10(1+r.votes):0)+Math.min(r.ing.length,12)/4+Math.min(r.steps.length,10)/5+(r.image?1:0);
+async function mealDb(q){
+  const j=JSON.parse(await fetchVia('https://www.themealdb.com/api/json/v1/1/search.php?s='+encodeURIComponent(q),'text'));
+  return (j.meals||[]).map(m=>{
+    const ing=[];
+    for(let i=1;i<=20;i++){
+      const a=(m['strIngredient'+i]||'').trim(),b=(m['strMeasure'+i]||'').trim();
+      if(a)ing.push(clean(`${b} ${a}`));
+    }
+    return {title:m.strMeal,ing,steps:(m.strInstructions||'').split(/\r?\n/).map(clean).filter(x=>x.length>2&&!/^step\s*\d+$/i.test(x)),image:m.strMealThumb,source:'TheMealDB'};
+  });
+}
+async function webSearch(q){
+  const html=await fetchVia('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q+' recipe'),'text');
+  const urls=[...new DOMParser().parseFromString(html,'text/html').querySelectorAll('a.result__a')].map(a=>{
+    try{const h=new URL(a.getAttribute('href'),'https://duckduckgo.com');return h.searchParams.get('uddg')||h.href}catch{return null}
+  }).filter(u=>/^https?:/.test(u)&&!/duckduckgo\.com/.test(u)).slice(0,6);
+  const found=await Promise.all(urls.map(async u=>{
+    try{const r=recipeFromHtml(await fetchVia(u,'text'));if(r){r.base=u;r.source=new URL(u).hostname}return r}catch{return null}
+  }));
+  return found.filter(r=>r&&r.ing.length&&r.steps.length);
+}
+$('searchBtn').onclick=async()=>{
+  const q=$('q').value.trim();if(!q)return;
+  const b=$('searchBtn');b.disabled=true;status(`Searching for the best “${q}” recipe…`);
+  try{
+    let c=[];
+    try{c=(await mealDb(q)).filter(r=>r.ing.length&&r.steps.length)}catch{}
+    if(!c.length){status('Checking recipe sites…');try{c=await webSearch(q)}catch{}}
+    if(!c.length){status(`No recipe found for “${q}”. Try a different name or paste a link.`);return}
+    const best=c.sort((a,b)=>score(b)-score(a))[0];
+    if(!photoFile&&!editing){photo=null;drop.style.backgroundImage='';drop.classList.remove('has');drop.querySelector('span').textContent='📷 Upload a photo'}
+    fillForm(best);
+    await setImage(best.image,best.base||location.href);
+    status(`Found “${best.title}” from ${best.source} — review and save.`);$('q').value='';
+  }catch(e){status(e.message)}
+  finally{b.disabled=false}
+};
+$('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('searchBtn').click()}};
+$('url').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('importBtn').click()}};
 let tessLoad;
 const loadTesseract=()=>tessLoad||(tessLoad=new Promise((res,rej)=>{
   if(window.Tesseract)return res(window.Tesseract);
