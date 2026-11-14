@@ -111,6 +111,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import" aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
     <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a photo</span></label>
     <button class="scan" type="button" id="scanBtn" hidden>✨ Read recipe text from photo</button>
+    <button class="scan" type="button" id="nextBtn" hidden>Try next match</button>
     <div id="status" role="status"></div>
     <label class="f">Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required></label>
     <label class="f">Ingredients (one per line)<textarea id="ing" rows="3" required></textarea></label>
@@ -326,43 +327,78 @@ async function setImage(src,base){
     drop.style.backgroundImage=`url(${photo})`;drop.classList.add('has');drop.querySelector('span').textContent='Change photo';
   }catch{}
 }
-const score=r=>(r.rating&&r.votes?r.rating*Math.log10(1+r.votes):0)+Math.min(r.ing.length,12)/4+Math.min(r.steps.length,10)/5+(r.image?1:0);
+const STOP=new Set(['recipe','recipes','best','easy','simple','quick','homemade','the','a','an','of','with','and','for','how','to','make','my','style']);
+const stem=w=>w.replace(/ies$/,'y').replace(/oes$/,'o').replace(/(ch|sh|x|s|z)es$/,'$1').replace(/([^s])s$/,'$1');
+const tokens=t=>(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z]+/g)||[]).filter(w=>!STOP.has(w)).map(stem);
+// Fraction of query words found in the title, with a bonus when the title contains the whole phrase in order.
+function relevance(r,q){
+  const qt=tokens(q);if(!qt.length)return 1;
+  const tt=tokens(r.title||''),set=new Set(tt);
+  let f=qt.filter(w=>set.has(w)).length/qt.length;
+  if(tt.join(' ').includes(qt.join(' ')))f+=0.5;
+  return f-Math.max(0,tt.length-qt.length-4)*0.03;
+}
+const quality=r=>(r.rating&&r.votes?r.rating*Math.log10(1+r.votes):0)+Math.min(r.ing.length,12)/4+Math.min(r.steps.length,10)/5+(r.image?1:0);
+const rank=(c,q)=>c.map(r=>({r,rel:relevance(r,q)})).filter(x=>x.rel>=0.5)
+  .sort((a,b)=>(b.rel*8+quality(b.r))-(a.rel*8+quality(a.r))).map(x=>x.r);
+const mealOf=m=>{
+  const ing=[];
+  for(let i=1;i<=20;i++){
+    const a=(m['strIngredient'+i]||'').trim(),b=(m['strMeasure'+i]||'').trim();
+    if(a)ing.push(clean(`${b} ${a}`));
+  }
+  return {title:m.strMeal,ing,steps:(m.strInstructions||'').split(/\r?\n/).map(clean).filter(x=>x.length>2&&!/^step\s*\d+$/i.test(x)),image:m.strMealThumb,source:'TheMealDB'};
+};
+const mealApi=async path=>{
+  try{return JSON.parse(await fetchVia('https://www.themealdb.com/api/json/v1/1/'+path,'text')).meals||[]}catch{return[]}
+};
 async function mealDb(q){
-  const j=JSON.parse(await fetchVia('https://www.themealdb.com/api/json/v1/1/search.php?s='+encodeURIComponent(q),'text'));
-  return (j.meals||[]).map(m=>{
-    const ing=[];
-    for(let i=1;i<=20;i++){
-      const a=(m['strIngredient'+i]||'').trim(),b=(m['strMeasure'+i]||'').trim();
-      if(a)ing.push(clean(`${b} ${a}`));
-    }
-    return {title:m.strMeal,ing,steps:(m.strInstructions||'').split(/\r?\n/).map(clean).filter(x=>x.length>2&&!/^step\s*\d+$/i.test(x)),image:m.strMealThumb,source:'TheMealDB'};
-  });
+  const t=tokens(q),variants=[...new Set([q.trim(),t.join(' '),...t.filter(w=>w.length>3)])].filter(Boolean).slice(0,4);
+  const byName=(await Promise.all(variants.map(v=>mealApi('search.php?s='+encodeURIComponent(v))))).flat();
+  let meals=byName;
+  if(!meals.length){
+    // No name match: look for meals containing the main ingredient, then fetch full details for a few.
+    const brief=(await Promise.all(t.slice(0,2).map(w=>mealApi('filter.php?i='+encodeURIComponent(w))))).flat().slice(0,6);
+    meals=(await Promise.all(brief.map(m=>mealApi('lookup.php?i='+m.idMeal)))).flat();
+  }
+  const seen=new Set();
+  return meals.filter(m=>!seen.has(m.idMeal)&&seen.add(m.idMeal)).map(mealOf);
 }
 async function webSearch(q){
   const html=await fetchVia('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q+' recipe'),'text');
   const urls=[...new DOMParser().parseFromString(html,'text/html').querySelectorAll('a.result__a')].map(a=>{
     try{const h=new URL(a.getAttribute('href'),'https://duckduckgo.com');return h.searchParams.get('uddg')||h.href}catch{return null}
-  }).filter(u=>/^https?:/.test(u)&&!/duckduckgo\.com/.test(u)).slice(0,6);
+  }).filter(u=>/^https?:/.test(u)&&!/duckduckgo\.com/.test(u)).slice(0,8);
   const found=await Promise.all(urls.map(async u=>{
     try{const r=recipeFromHtml(await fetchVia(u,'text'));if(r){r.base=u;r.source=new URL(u).hostname}return r}catch{return null}
   }));
   return found.filter(r=>r&&r.ing.length&&r.steps.length);
 }
+let cands=[],ci=0;
+async function applyCandidate(r){
+  if(!photoFile&&!editing){photo=null;drop.style.backgroundImage='';drop.classList.remove('has');drop.querySelector('span').textContent='📷 Upload a photo'}
+  fillForm(r);
+  await setImage(r.image,r.base||location.href);
+  $('nextBtn').hidden=cands.length<2;
+  status(`“${r.title}” from ${r.source} (${ci+1} of ${cands.length}) — review and save.`);
+}
 $('searchBtn').onclick=async()=>{
   const q=$('q').value.trim();if(!q)return;
-  const b=$('searchBtn');b.disabled=true;status(`Searching for the best “${q}” recipe…`);
+  const b=$('searchBtn');b.disabled=true;$('nextBtn').hidden=true;status(`Searching for the best “${q}” recipe…`);
   try{
-    let c=[];
-    try{c=(await mealDb(q)).filter(r=>r.ing.length&&r.steps.length)}catch{}
-    if(!c.length){status('Checking recipe sites…');try{c=await webSearch(q)}catch{}}
-    if(!c.length){status(`No recipe found for “${q}”. Try a different name or paste a link.`);return}
-    const best=c.sort((a,b)=>score(b)-score(a))[0];
-    if(!photoFile&&!editing){photo=null;drop.style.backgroundImage='';drop.classList.remove('has');drop.querySelector('span').textContent='📷 Upload a photo'}
-    fillForm(best);
-    await setImage(best.image,best.base||location.href);
-    status(`Found “${best.title}” from ${best.source} — review and save.`);$('q').value='';
+    // Query both sources together so a weak match in one doesn't hide a better one in the other.
+    const [m,w]=await Promise.all([mealDb(q).catch(()=>[]),webSearch(q).catch(()=>[])]);
+    cands=rank([...m,...w].filter(r=>r.ing.length&&r.steps.length),q);ci=0;
+    if(!cands.length){status(`No recipe found for “${q}”. Try a different name or paste a link.`);return}
+    await applyCandidate(cands[0]);$('q').value='';
   }catch(e){status(e.message)}
   finally{b.disabled=false}
+};
+$('nextBtn').onclick=async()=>{
+  if(cands.length<2)return;
+  ci=(ci+1)%cands.length;
+  const b=$('nextBtn');b.disabled=true;
+  try{await applyCandidate(cands[ci])}finally{b.disabled=false}
 };
 $('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('searchBtn').click()}};
 $('url').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('importBtn').click()}};
@@ -475,7 +511,7 @@ let editing=null;
 function resetForm(){
   editing=null;$('form').reset();photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
   drop.querySelector('span').textContent='📷 Upload a photo';
-  photoFile=null;$('scanBtn').hidden=true;status('');
+  photoFile=null;$('scanBtn').hidden=true;$('nextBtn').hidden=true;cands=[];status('');
   $('saveBtn').textContent='Save recipe';$('cancelEdit').hidden=true;
 }
 $('form').onsubmit=e=>{
