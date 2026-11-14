@@ -68,6 +68,19 @@ ul,ol{margin:0 0 8px;padding-left:20px}li{margin:3px 0}
 .tabs button{border:0;border-bottom:1px solid transparent;margin-bottom:-1px;background:none;color:var(--muted);font:inherit;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:12px 6px;min-height:44px;cursor:pointer;transition:color .2s}
 .tabs button.on{background:none;color:var(--text);border-bottom-color:var(--text);box-shadow:none}
 [hidden]{display:none!important}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;background:var(--fill);border-radius:8px;margin-bottom:12px}
+.seg button{border:0;background:none;color:var(--text);font:inherit;font-size:13px;font-weight:600;padding:6px;min-height:32px;border-radius:6px;cursor:pointer}
+.seg button.on{background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.wk{display:grid;gap:4px}
+.wrow{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:0;border-radius:10px;background:none;color:var(--text);font:inherit;padding:8px 10px;cursor:pointer}
+.wrow:hover{background:var(--fill)}
+.wrow.sel{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.wrow .wd{flex:none;width:44px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;line-height:1.2}
+.wrow .wd b{display:block;font-size:20px;color:var(--text);letter-spacing:-.02em}
+.wrow.today .wd b{color:var(--accent)}
+.wrow .wm{flex:1;display:grid;gap:2px;font-size:14px;min-height:36px;align-content:center}
+.wrow .wm small{color:var(--muted);font-size:12px}
+.wrow .wm em{font-style:normal;color:var(--muted)}
 .cal{padding:12px 14px;margin-bottom:16px}
 .calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .calhead strong{font-size:17px;font-weight:600}
@@ -132,9 +145,11 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     <div class="card gro" id="groList"></div>
   </section>
   <section id="planView" hidden>
+    <div class="seg" id="calMode" role="tablist" aria-label="Calendar view"><button data-mode="day">Day</button><button data-mode="week">Week</button><button data-mode="month">Month</button></div>
     <div class="card cal">
-      <div class="calhead"><button class="nav" id="prev" aria-label="Previous month">‹</button><strong id="month"></strong><button class="nav" id="next" aria-label="Next month">›</button></div>
+      <div class="calhead"><button class="nav" id="prev" aria-label="Previous">‹</button><strong id="month"></strong><button class="nav" id="next" aria-label="Next">›</button></div>
       <div class="grid" id="grid"></div>
+      <div class="wk" id="week"></div>
     </div>
     <div class="card plan">
       <h2 id="selTitle"></h2>
@@ -575,23 +590,63 @@ function savePlan(){
   if(REMOTE){fs.setDoc(fs.doc(db,'meta','plan'),{json:JSON.stringify(plan)}).catch(fail);return}
   try{localStorage.setItem(PKEY,JSON.stringify(plan))}catch{}
 }
-let view=new Date(today.getFullYear(),today.getMonth(),1),sel=ymd(today);
+let sel=ymd(today),calMode=localStorage.getItem('cookcal-calview');
+if(!['day','week','month'].includes(calMode))calMode='month';
 const byId=id=>recipes.find(r=>r.id==id);
-
+const fromYmd=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)};
+function shiftSel(dir){
+  const c=fromYmd(sel);
+  if(calMode==='month'){
+    const n=new Date(c.getFullYear(),c.getMonth()+dir,1);
+    n.setDate(Math.min(c.getDate(),new Date(n.getFullYear(),n.getMonth()+1,0).getDate()));
+    sel=ymd(n);
+  }else sel=ymd(new Date(c.getFullYear(),c.getMonth(),c.getDate()+dir*(calMode==='week'?7:1)));
+}
 function renderCal(){
-  $('month').textContent=view.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-  const g=$('grid');g.innerHTML='';
-  const first=new Date(view);
-  first.setDate(1-(first.getDay()+6)%7);
-  ['M','T','W','T','F','S','S'].forEach(d=>{const e=document.createElement('div');e.className='dow';e.textContent=d;g.appendChild(e)});
-  for(let i=0;i<42;i++){
-    const d=new Date(first);d.setDate(first.getDate()+i);
-    const k=ymd(d),b=document.createElement('button');
-    b.className='day'+(d.getMonth()!==view.getMonth()?' other':'')+(k===ymd(today)?' today':'')+(k===sel?' sel':'');
-    b.dataset.date=k;b.textContent=d.getDate();
-    const n=(plan[k]||[]).filter(e=>byId(e.id)).length;
-    if(n){const dots=document.createElement('i');dots.innerHTML='<b></b>'.repeat(Math.min(n,3));b.appendChild(dots)}
-    g.appendChild(b);
+  const c=fromYmd(sel),g=$('grid'),wk=$('week');
+  document.querySelectorAll('#calMode button').forEach(b=>b.classList.toggle('on',b.dataset.mode===calMode));
+  g.hidden=calMode!=='month';wk.hidden=calMode!=='week';
+  const unit={day:'day',week:'week',month:'month'}[calMode];
+  $('prev').setAttribute('aria-label','Previous '+unit);$('next').setAttribute('aria-label','Next '+unit);
+  if(calMode==='month'){
+    $('month').textContent=c.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    g.innerHTML='';
+    const first=new Date(c.getFullYear(),c.getMonth(),1);
+    first.setDate(1-(first.getDay()+6)%7);
+    ['M','T','W','T','F','S','S'].forEach(d=>{const e=document.createElement('div');e.className='dow';e.textContent=d;g.appendChild(e)});
+    for(let i=0;i<42;i++){
+      const d=new Date(first);d.setDate(first.getDate()+i);
+      const k=ymd(d),b=document.createElement('button');
+      b.className='day'+(d.getMonth()!==c.getMonth()?' other':'')+(k===ymd(today)?' today':'')+(k===sel?' sel':'');
+      b.dataset.date=k;b.textContent=d.getDate();
+      const n=(plan[k]||[]).filter(e=>byId(e.id)).length;
+      if(n){const dots=document.createElement('i');dots.innerHTML='<b></b>'.repeat(Math.min(n,3));b.appendChild(dots)}
+      g.appendChild(b);
+    }
+  }else if(calMode==='week'){
+    const mon=new Date(c.getFullYear(),c.getMonth(),c.getDate()-(c.getDay()+6)%7),end=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6);
+    const f=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    $('month').textContent=`${f(mon)} – ${f(end)}`;
+    wk.innerHTML='';
+    for(let i=0;i<7;i++){
+      const d=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+i),k=ymd(d);
+      const b=document.createElement('button');
+      b.className='wrow'+(k===sel?' sel':'')+(k===ymd(today)?' today':'');b.dataset.date=k;
+      const wd=document.createElement('div');wd.className='wd';
+      wd.append(d.toLocaleDateString(undefined,{weekday:'short'}));
+      const num=document.createElement('b');num.textContent=d.getDate();wd.appendChild(num);
+      const wm=document.createElement('div');wm.className='wm';
+      const items=(plan[k]||[]).filter(e=>byId(e.id));
+      SLOTS.forEach(([key,label])=>items.filter(e=>e.slot===key).forEach(e=>{
+        const row=document.createElement('div');
+        const sm=document.createElement('small');sm.textContent=label+' · ';
+        row.append(sm,byId(e.id).title);wm.appendChild(row);
+      }));
+      if(!items.length){const em=document.createElement('em');em.textContent='Nothing planned';wm.appendChild(em)}
+      b.append(wd,wm);wk.appendChild(b);
+    }
+  }else{
+    $('month').textContent=c.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
   }
   renderDay();
 }
@@ -626,13 +681,18 @@ function renderDay(){
 }
 $('grid').addEventListener('click',e=>{
   const b=e.target.closest('.day');if(!b)return;
-  sel=b.dataset.date;
-  const [y,m]=sel.split('-').map(Number);
-  if(m-1!==view.getMonth())view=new Date(y,m-1,1);
-  renderCal();
+  sel=b.dataset.date;renderCal();
 });
-$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCal()};
-$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCal()};
+$('week').addEventListener('click',e=>{
+  const b=e.target.closest('.wrow');if(!b)return;
+  sel=b.dataset.date;renderCal();
+});
+$('prev').onclick=()=>{shiftSel(-1);renderCal()};
+$('next').onclick=()=>{shiftSel(1);renderCal()};
+$('calMode').addEventListener('click',e=>{
+  const m=e.target.dataset.mode;if(!m)return;
+  calMode=m;try{localStorage.setItem('cookcal-calview',m)}catch{}renderCal();
+});
 $('meals').addEventListener('change',e=>{
   const sl=e.target.closest('select.add');if(!sl||!sl.value)return;
   (plan[sel]=plan[sel]||[]).push({id:sl.value,slot:sl.dataset.slot});savePlan();renderCal();
