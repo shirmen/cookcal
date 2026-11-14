@@ -39,6 +39,12 @@ button.scan{padding:11px 16px}
 #status{font-size:13px;color:var(--muted);min-height:0}
 #status:empty{display:none}
 button.save{padding:12px;min-height:46px;font:inherit;font-size:15px;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;cursor:pointer;transition:transform .1s,opacity .2s}
+dialog.confirm{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);padding:20px;width:min(320px,calc(100% - 40px));text-align:center}
+dialog.confirm form{background:none;border:0;padding:0;margin:0;display:block}
+dialog.confirm::backdrop{background:rgba(0,0,0,.5)}
+dialog.confirm h2{margin:0 0 6px;font-size:17px}dialog.confirm p{margin:0 0 16px;color:var(--muted);font-size:14px;word-break:break-word}
+dialog.confirm .row{display:flex;gap:8px}dialog.confirm button{flex:1;min-height:44px;font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--fill);color:var(--text);cursor:pointer}
+dialog.confirm button.danger{background:var(--danger);border-color:var(--danger);color:#fff}
 button.save:hover{opacity:.9}button.save:active{transform:scale(.98);opacity:.8}
 .list{display:grid;gap:16px}
 #list{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
@@ -166,6 +172,7 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     </div>
   </section>
 </main>
+<dialog class="confirm" id="confirmDlg"><form method="dialog"><h2>Delete recipe?</h2><p id="confirmMsg"></p><div class="row"><button value="cancel" autofocus>Cancel</button><button value="ok" class="danger">Delete</button></div></form></dialog>
 <script src="firebase-config.js"></script>
 <script type="module">
 const KEY='recipe-box-v1';
@@ -608,6 +615,10 @@ $('form').onsubmit=e=>{
   resetForm();render();
 };
 $('cancelEdit').onclick=resetForm;
+function confirmDelete(title){
+  const d=$('confirmDlg');$('confirmMsg').textContent=`“${title}” will be removed from your recipes and meal plan.`;
+  return new Promise(res=>{d.addEventListener('close',()=>res(d.returnValue==='ok'),{once:true});d.returnValue='cancel';d.showModal()});
+}
 $('list').addEventListener('click',e=>{
   const c=e.target.closest('.card');if(!c)return;
   if(e.target.closest('.edit,.del')===null&&!e.target.closest('a,input,select,textarea')){
@@ -621,11 +632,15 @@ $('list').addEventListener('click',e=>{
     $('saveBtn').textContent='Update recipe';$('cancelEdit').hidden=false;
     window.scrollTo({top:0,behavior:'smooth'});$('title').focus({preventScroll:true});
   }else if(e.target.classList.contains('del')){
-    if(editing==c.dataset.id)resetForm();
-    recipes=recipes.filter(r=>r.id!=c.dataset.id);
-    for(const k in plan){plan[k]=plan[k].filter(e=>e.id!=c.dataset.id);if(!plan[k].length)delete plan[k]}
-    save();savePlan();
-    c.classList.add('out');setTimeout(render,250);
+    const rec=recipes.find(r=>r.id==c.dataset.id);
+    confirmDelete(rec?rec.title:'this recipe').then(ok=>{
+      if(!ok)return;
+      if(editing==c.dataset.id)resetForm();
+      recipes=recipes.filter(r=>r.id!=c.dataset.id);
+      for(const k in plan){plan[k]=plan[k].filter(e=>e.id!=c.dataset.id);if(!plan[k].length)delete plan[k]}
+      save();savePlan();
+      c.classList.add('out');setTimeout(render,250);
+    });
   }
 });
 render();
