@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-mode="edit">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -125,8 +125,11 @@ ul,ol{margin:0 0 8px;padding-left:20px}li{margin:3px 0}
 .slot h3{margin:6px 0 0;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .slot select{padding:10px 38px 10px 12px;min-height:40px;font-size:14px;color:var(--accent);font-weight:600;border:1px dashed var(--line);background-color:transparent}
 .hint{color:var(--muted);font-size:14px}
-html[data-mode=view] .editonly,html[data-auth=out] .editonly,html[data-mode=view] .signin,.signin{display:none!important}
-html[data-mode=edit][data-auth=out] .signin{display:block!important}
+.recipe-actions{display:flex;justify-content:flex-end;margin:0 0 12px}
+button.add{width:44px;height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--accent);font:inherit;font-size:28px;line-height:1;cursor:pointer;transition:background .2s,transform .1s}
+button.add:hover{background:var(--fill)}button.add:active{transform:scale(.94)}
+html[data-auth=out] .editonly,.signin{display:none!important}
+html[data-auth=out] .signin{display:block!important}
 .edit{border:0;background:none;color:var(--muted);font-size:17px;width:44px;height:44px;margin:-8px 0 -8px 0;border-radius:50%;cursor:pointer;transition:color .2s,background .2s}
 .edit:hover{color:var(--accent);background:var(--fill)}
 .sec{border:0;background:none;color:var(--accent);font:inherit;font-size:15px;padding:8px;cursor:pointer}
@@ -140,7 +143,8 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
   <div class="sub" id="count"></div>
   <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
   <section id="recipesView">
-  <form id="form" class="editonly">
+  <div class="recipe-actions editonly"><button class="add" type="button" id="toggleForm" aria-label="Add recipe" aria-expanded="false">+</button></div>
+  <form id="form" class="editonly" hidden>
     <div class="imp"><input type="text" id="q" placeholder="Find the best recipe by food name" aria-label="Food name"><button type="button" id="searchBtn">Search</button></div>
     <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import" aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
     <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a photo</span></label>
@@ -183,7 +187,6 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
 <script type="module">
 const KEY='recipe-box-v1';
 const $=id=>document.getElementById(id);
-const VIEW=document.documentElement.dataset.mode==='view';
 const PKEY='recipe-box-plan-v1';
 const CFG=window.COOKCAL_FIREBASE;
 const REMOTE=!!(CFG&&CFG.apiKey&&!/^YOUR/.test(CFG.apiKey));
@@ -194,13 +197,12 @@ if(REMOTE){
   const inst=app.initializeApp(CFG);
   db=f.getFirestore(inst);fs=f;authApi=a;auth=a.getAuth(inst);
   await auth.authStateReady();
-  if(!VIEW)document.documentElement.dataset.auth='out';
+  document.documentElement.dataset.auth='out';
 }
 const fail=e=>{console.error(e);alert('Could not save: '+(e.code==='permission-denied'?'only the owner can make changes.':e.message))};
 let recipes;
 if(REMOTE)recipes=[];
 else try{recipes=JSON.parse(localStorage.getItem(KEY))}catch{}
-if(!Array.isArray(recipes)&&VIEW)recipes=[];
 if(!Array.isArray(recipes)){
   recipes=[
     {id:1,emoji:'🍝',title:'Garlic Butter Pasta',ing:['200g spaghetti','3 tbsp butter','4 cloves garlic','Parmesan','Parsley'],steps:['Boil pasta until al dente.','Melt butter and sauté garlic for 1 minute.','Toss pasta with sauce and a splash of pasta water.','Top with Parmesan and parsley.']},
@@ -606,8 +608,18 @@ function render(){
   $('count').textContent=`${recipes.length} saved recipe${recipes.length===1?'':'s'}`;
 }
 let editing=null;
+function setFormOpen(open){
+  $('form').hidden=!open;
+  $('toggleForm').textContent=open?'×':'+';
+  $('toggleForm').setAttribute('aria-label',open?'Close recipe form':'Add recipe');
+  $('toggleForm').setAttribute('aria-expanded',String(open));
+}
+$('toggleForm').onclick=()=>{
+  if($('form').hidden){setFormOpen(true);$('title').focus()}
+  else resetForm();
+};
 function resetForm(){
-  editing=null;$('form').reset();photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
+  editing=null;$('form').reset();setFormOpen(false);photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
   drop.querySelector('span').textContent='📷 Upload a photo';
   photoFile=null;$('scanBtn').hidden=true;$('nextBtn').hidden=true;cands=[];status('');
   $('saveBtn').textContent='Save recipe';$('cancelEdit').hidden=true;
@@ -633,7 +645,7 @@ $('list').addEventListener('click',e=>{
     const o=c.classList.toggle('open');c.querySelector('.toggle').textContent=o?'Hide recipe':'View recipe';
   }else if(e.target.classList.contains('edit')){
     const r=recipes.find(x=>x.id==c.dataset.id);
-    editing=r.id;photo=r.photo||null;photoFile=null;$('scanBtn').hidden=!photo;
+    editing=r.id;setFormOpen(true);photo=r.photo||null;photoFile=null;$('scanBtn').hidden=!photo;
     $('title').value=r.title;$('ing').value=r.ing.join('\n');$('steps').value=r.steps.join('\n');
     drop.style.backgroundImage=photo?`url(${photo})`:'';drop.classList.toggle('has',!!photo);
     drop.querySelector('span').textContent=photo?'Change photo':'📷 Upload a photo';
@@ -672,8 +684,8 @@ function normPlan(p){
   return out;
 }
 if(!plan||typeof plan!=='object'||Array.isArray(plan)){
-  if(VIEW)plan={};else{const t=new Date(today);t.setDate(t.getDate()+1);
-  plan={[ymd(today)]:[{id:1,slot:'dinner'}],[ymd(t)]:[{id:2,slot:'breakfast'},{id:3,slot:'lunch'}]};savePlan();}
+  const t=new Date(today);t.setDate(t.getDate()+1);
+  plan={[ymd(today)]:[{id:1,slot:'dinner'}],[ymd(t)]:[{id:2,slot:'breakfast'},{id:3,slot:'lunch'}]};savePlan();
 }else plan=normPlan(plan);
 function savePlan(){
   if(REMOTE){fs.setDoc(fs.doc(db,'meta','plan'),{json:JSON.stringify(plan)}).catch(fail);return}
@@ -756,7 +768,7 @@ function renderDay(){
       m.querySelector('span').textContent=r.title;
       sec.appendChild(m);
     });
-    if(!VIEW&&recipes.length){
+    if(recipes.length){
       const sl=document.createElement('select');sl.className='editonly add';sl.dataset.slot=key;
       sl.setAttribute('aria-label','Add recipe to '+label.toLowerCase());
       sl.innerHTML='<option value="">＋ Add a recipe…</option>';
@@ -887,25 +899,23 @@ if(REMOTE){
     try{plan=normPlan(d.exists()?JSON.parse(d.data().json):{})}catch{plan={}}
     refresh();
   },fail);
-  if(!VIEW){
-    authApi.onAuthStateChanged(auth,u=>{
-      document.documentElement.dataset.auth=u?'in':'out';
-      $('signout').hidden=!u;
-    });
-    $('signin').onclick=async()=>{
-      const prov=new authApi.GoogleAuthProvider();
-      const btn=$('signin');btn.textContent='Opening Google…';
-      setTimeout(()=>btn.textContent='🔒 Owner sign-in',4000);
-      try{await authApi.signInWithPopup(auth,prov)}
-      catch(e){
-        if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(e.code)){
-          try{await authApi.signInWithRedirect(auth,prov);return}catch(e2){e=e2}
-        }
-        alert('Sign-in failed: '+(e.code||e.message));
+  authApi.onAuthStateChanged(auth,u=>{
+    document.documentElement.dataset.auth=u?'in':'out';
+    $('signout').hidden=!u;
+  });
+  $('signin').onclick=async()=>{
+    const prov=new authApi.GoogleAuthProvider();
+    const btn=$('signin');btn.textContent='Opening Google…';
+    setTimeout(()=>btn.textContent='🔒 Owner sign-in',4000);
+    try{await authApi.signInWithPopup(auth,prov)}
+    catch(e){
+      if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(e.code)){
+        try{await authApi.signInWithRedirect(auth,prov);return}catch(e2){e=e2}
       }
-    };
-    $('signout').onclick=()=>authApi.signOut(auth);
-  }
+      alert('Sign-in failed: '+(e.code||e.message));
+    }
+  };
+  $('signout').onclick=()=>authApi.signOut(auth);
 }
 </script>
 </body>
