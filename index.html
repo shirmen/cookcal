@@ -23,7 +23,7 @@ h1{font-size:30px;font-weight:700;margin:0 0 2px;letter-spacing:-.02em;backgroun
 form,.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
 form{padding:18px;display:grid;gap:12px;margin-bottom:22px}
 label.f{display:grid;gap:6px;font-size:13px;color:var(--muted);font-weight:500}
-input[type=text],input[type=email],textarea,select{width:100%;padding:11px 12px;min-height:44px;font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;outline:none;resize:vertical;transition:border-color .2s;-webkit-appearance:none;appearance:none}
+input[type=text],textarea,select{width:100%;padding:11px 12px;min-height:44px;font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;outline:none;resize:vertical;transition:border-color .2s;-webkit-appearance:none;appearance:none}
 input::placeholder,textarea::placeholder{color:var(--muted)}
 input:focus,textarea:focus,select:focus{border-color:var(--muted)}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
@@ -125,15 +125,8 @@ ul,ol{margin:0 0 8px;padding-left:20px}li{margin:3px 0}
 .slot h3{margin:6px 0 0;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .slot select{padding:10px 38px 10px 12px;min-height:40px;font-size:14px;color:var(--accent);font-weight:600;border:1px dashed var(--line);background-color:transparent}
 .hint{color:var(--muted);font-size:14px}
-html[data-auth=out] .editonly,html[data-auth=setup] .editonly,.signin{display:none!important}
-html[data-auth=out] .signin,html[data-auth=setup] .signin{display:block!important}
-.authbox{display:none;gap:10px;margin:0 auto 20px}
-html[data-auth=out] .authbox,html[data-auth=setup] .authbox{display:grid}
-html[data-auth=out] #googleSignin,html[data-auth=setup] #registerPasskey{display:block!important}
-.authbox label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-.authbox button{width:100%;padding:12px;min-height:44px;font:inherit;font-size:14px;font-weight:600;color:var(--accent);background:none;border:1px solid var(--line);border-radius:8px;cursor:pointer}
-#authStatus{font-size:13px;color:var(--muted);min-height:0}
-#authStatus:empty{display:none}
+html[data-auth=out] .editonly,.signin{display:none!important}
+html[data-auth=out] .signin{display:block!important}
 .edit{border:0;background:none;color:var(--muted);font-size:17px;width:44px;height:44px;margin:-8px 0 -8px 0;border-radius:50%;cursor:pointer;transition:color .2s,background .2s}
 .edit:hover{color:var(--accent);background:var(--fill)}
 .sec{border:0;background:none;color:var(--accent);font:inherit;font-size:15px;padding:8px;cursor:pointer}
@@ -162,15 +155,8 @@ html[data-auth=out] #googleSignin,html[data-auth=setup] #registerPasskey{display
   </form>
   <div class="list" id="list"></div>
   <div class="dots" id="dots"></div>
-  <div class="authbox" id="authbox">
-    <label>Owner email<input type="email" id="ownerEmail" autocomplete="username webauthn" placeholder="you@example.com"></label>
-    <button class="signin" id="signin" type="button">🔐 Sign in with a passkey</button>
-    <button id="googleSignin" type="button">Continue with Google to set up a passkey</button>
-    <button id="registerPasskey" type="button" hidden>Register your first passkey</button>
-    <div id="authStatus" role="status" aria-live="polite"></div>
-  </div>
-  <button class="sec share editonly" id="addPasskey" hidden>Add another passkey</button>
   <button class="sec share editonly" id="signout" hidden>Sign out</button>
+  <button class="sec share signin" id="signin">🔒 Owner sign-in</button>
   </section>
   <section id="shopView" hidden>
     <div class="card cal">
@@ -899,76 +885,21 @@ if(REMOTE){
     try{plan=normPlan(d.exists()?JSON.parse(d.data().json):{})}catch{plan={}}
     refresh();
   },fail);
-  const PASSKEY_API=`https://us-central1-${CFG.projectId}.cloudfunctions.net/passkey`;
-  const OWNER_EMAILS=['migaakuz@gmail.com','zayamgl@gmail.com'];
-  const authStatus=m=>{$('authStatus').textContent=m||''};
-  let webauthn;
-  const webauthnApi=()=>webauthn||(webauthn=import('https://esm.sh/@simplewebauthn/browser@14.0.0'));
-  async function passkeyRequest(action,data={},user=auth.currentUser){
-    const headers={'Content-Type':'application/json'};
-    if(user)headers.Authorization='Bearer '+await user.getIdToken();
-    const response=await fetch(PASSKEY_API,{method:'POST',headers,body:JSON.stringify({action,...data})});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(result.error||'Passkey request failed.');
-    return result;
-  }
-  authApi.onIdTokenChanged(auth,async user=>{
-    $('signout').hidden=!user;
-    $('addPasskey').hidden=true;
-    if(!user){document.documentElement.dataset.auth='out';return}
-    try{
-      const result=await user.getIdTokenResult();
-      const owner=OWNER_EMAILS.includes((user.email||'').toLowerCase())&&user.emailVerified;
-      if(!owner){
-        document.documentElement.dataset.auth='out';
-        authStatus('This Google account is not an authorized CookCal owner.');
-        await authApi.signOut(auth);return;
-      }
-      const hasPasskey=!!result.claims.passkeyOwner;
-      const passkeySession=hasPasskey&&result.claims.firebase?.sign_in_provider==='custom';
-      document.documentElement.dataset.auth=passkeySession?'in':'setup';
-      $('ownerEmail').value=user.email||'';
-      $('registerPasskey').hidden=hasPasskey;
-      $('addPasskey').hidden=!passkeySession;
-      authStatus(passkeySession?'Passkey sign-in is ready.':hasPasskey?'Use your passkey to continue.':'Verify your owner account, then register a passkey.');
-    }catch(e){document.documentElement.dataset.auth='out';authStatus(e.message)}
+  authApi.onAuthStateChanged(auth,u=>{
+    document.documentElement.dataset.auth=u?'in':'out';
+    $('signout').hidden=!u;
   });
   $('signin').onclick=async()=>{
-    const email=$('ownerEmail').value.trim().toLowerCase();
-    if(!email){authStatus('Enter the owner email linked to your passkey.');return}
-    const btn=$('signin');btn.disabled=true;authStatus('Waiting for your passkey…');
-    try{
-      const {startAuthentication}=await webauthnApi();
-      const started=await passkeyRequest('authentication-options',{email},null);
-      const response=await startAuthentication({optionsJSON:started.options});
-      const result=await passkeyRequest('authentication-verify',{email,challengeId:started.challengeId,response},null);
-      await authApi.signInWithCustomToken(auth,result.token);
-      authStatus('Signed in with your passkey.');
-    }catch(e){authStatus(e.message||'Passkey sign-in failed.')}finally{btn.disabled=false}
-  };
-  async function registerPasskey(button){
-    button.disabled=true;authStatus('Preparing passkey registration…');
-    try{
-      const {startRegistration}=await webauthnApi();
-      const started=await passkeyRequest('register-options');
-      const response=await startRegistration({optionsJSON:started.options});
-      await passkeyRequest('register-verify',{challengeId:started.challengeId,response});
-      await auth.currentUser.getIdToken(true);
-      authStatus('Passkey registered. You can now sign in with it.');
-    }catch(e){authStatus(e.message||'Could not register that passkey.')}finally{button.disabled=false}
-  }
-  $('registerPasskey').onclick=()=>registerPasskey($('registerPasskey'));
-  $('addPasskey').onclick=()=>registerPasskey($('addPasskey'));
-  $('googleSignin').onclick=async()=>{
-    const button=$('googleSignin');button.disabled=true;authStatus('Opening Google sign-in…');
-    const provider=new authApi.GoogleAuthProvider();
-    try{await authApi.signInWithPopup(auth,provider)}
+    const prov=new authApi.GoogleAuthProvider();
+    const btn=$('signin');btn.textContent='Opening Google…';
+    setTimeout(()=>btn.textContent='🔒 Owner sign-in',4000);
+    try{await authApi.signInWithPopup(auth,prov)}
     catch(e){
       if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(e.code)){
-        try{await authApi.signInWithRedirect(auth,provider);return}catch(next){e=next}
+        try{await authApi.signInWithRedirect(auth,prov);return}catch(e2){e=e2}
       }
-      authStatus('Google sign-in failed: '+(e.code||e.message));
-    }finally{button.disabled=false}
+      alert('Sign-in failed: '+(e.code||e.message));
+    }
   };
   $('signout').onclick=()=>authApi.signOut(auth);
 }

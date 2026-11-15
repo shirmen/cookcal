@@ -3,8 +3,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner() {
       return request.auth != null
-        && request.auth.token.passkeyOwner == true
-        && request.auth.token.firebase.sign_in_provider == 'custom'
         && request.auth.token.email_verified == true
         && request.auth.token.email in ['migaakuz@gmail.com', 'zayamgl@gmail.com'];
     }
@@ -15,12 +13,6 @@ service cloud.firestore {
     match /meta/{id} {
       allow read: if true;
       allow write: if isOwner();
-    }
-    match /passkeys/{id} {
-      allow read, write: if false;
-    }
-    match /passkeyChallenges/{id} {
-      allow read, write: if false;
     }
   }
 }

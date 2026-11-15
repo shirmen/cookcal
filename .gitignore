@@ -1,4 +1,0 @@
-functions/.env
-functions/.env.*
-!functions/.env.example
-functions/node_modules/
