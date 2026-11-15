@@ -125,6 +125,9 @@ ul,ol{margin:0 0 8px;padding-left:20px}li{margin:3px 0}
 .slot h3{margin:6px 0 0;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .slot select{padding:10px 38px 10px 12px;min-height:40px;font-size:14px;color:var(--accent);font-weight:600;border:1px dashed var(--line);background-color:transparent}
 .hint{color:var(--muted);font-size:14px}
+.recipe-actions{display:flex;justify-content:flex-end;margin:0 0 12px}
+button.add{width:44px;height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--accent);font:inherit;font-size:28px;line-height:1;cursor:pointer;transition:background .2s,transform .1s}
+button.add:hover{background:var(--fill)}button.add:active{transform:scale(.94)}
 html[data-auth=out] .editonly,.signin{display:none!important}
 html[data-auth=out] .signin{display:block!important}
 .edit{border:0;background:none;color:var(--muted);font-size:17px;width:44px;height:44px;margin:-8px 0 -8px 0;border-radius:50%;cursor:pointer;transition:color .2s,background .2s}
@@ -140,7 +143,8 @@ html[data-auth=out] .signin{display:block!important}
   <div class="sub" id="count"></div>
   <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
   <section id="recipesView">
-  <form id="form" class="editonly">
+  <div class="recipe-actions editonly"><button class="add" type="button" id="toggleForm" aria-label="Add recipe" aria-expanded="false">+</button></div>
+  <form id="form" class="editonly" hidden>
     <div class="imp"><input type="text" id="q" placeholder="Find the best recipe by food name" aria-label="Food name"><button type="button" id="searchBtn">Search</button></div>
     <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import" aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
     <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a photo</span></label>
@@ -604,8 +608,18 @@ function render(){
   $('count').textContent=`${recipes.length} saved recipe${recipes.length===1?'':'s'}`;
 }
 let editing=null;
+function setFormOpen(open){
+  $('form').hidden=!open;
+  $('toggleForm').textContent=open?'×':'+';
+  $('toggleForm').setAttribute('aria-label',open?'Close recipe form':'Add recipe');
+  $('toggleForm').setAttribute('aria-expanded',String(open));
+}
+$('toggleForm').onclick=()=>{
+  if($('form').hidden){setFormOpen(true);$('title').focus()}
+  else resetForm();
+};
 function resetForm(){
-  editing=null;$('form').reset();photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
+  editing=null;$('form').reset();setFormOpen(false);photo=null;drop.style.backgroundImage='';drop.classList.remove('has');
   drop.querySelector('span').textContent='📷 Upload a photo';
   photoFile=null;$('scanBtn').hidden=true;$('nextBtn').hidden=true;cands=[];status('');
   $('saveBtn').textContent='Save recipe';$('cancelEdit').hidden=true;
@@ -631,7 +645,7 @@ $('list').addEventListener('click',e=>{
     const o=c.classList.toggle('open');c.querySelector('.toggle').textContent=o?'Hide recipe':'View recipe';
   }else if(e.target.classList.contains('edit')){
     const r=recipes.find(x=>x.id==c.dataset.id);
-    editing=r.id;photo=r.photo||null;photoFile=null;$('scanBtn').hidden=!photo;
+    editing=r.id;setFormOpen(true);photo=r.photo||null;photoFile=null;$('scanBtn').hidden=!photo;
     $('title').value=r.title;$('ing').value=r.ing.join('\n');$('steps').value=r.steps.join('\n');
     drop.style.backgroundImage=photo?`url(${photo})`:'';drop.classList.toggle('has',!!photo);
     drop.querySelector('span').textContent=photo?'Change photo':'📷 Upload a photo';
