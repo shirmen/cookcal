@@ -579,22 +579,24 @@ li {
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: min(480px, 100%);
+  width: 100vw;
+  max-width: 480px;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+  padding: 7px 4px calc(7px + env(safe-area-inset-bottom));
   background: var(--card);
   border-top: 1px solid var(--line);
   box-shadow: 0 -4px 16px rgb(0 0 0 / 5%);
 }
 
 .tabs button {
+  min-width: 0;
   border: 0;
   border-radius: 10px;
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
+  font-size: clamp(9px, 2.8vw, 11px);
   font-weight: 600;
   letter-spacing: 0;
   padding: 5px 2px;
@@ -611,6 +613,7 @@ li {
 }
 
 .tabs button svg {
+  flex: 0 0 auto;
   width: 22px;
   height: 22px;
   fill: none;
@@ -618,6 +621,10 @@ li {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.tabs button span {
+  white-space: nowrap;
 }
 
 .tabs button.on {
@@ -631,8 +638,8 @@ li {
 }
 
 .tabs button.add-new svg {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 6px;
   border-radius: 50%;
   background: var(--accent);
