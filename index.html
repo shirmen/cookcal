@@ -77,6 +77,26 @@
         <div class="card gro" id="groList"></div>
       </section>
       <section id="accountView" hidden>
+        <section id="planView" hidden>
+          <h2 class="page-title">Calendar</h2>
+          <div class="seg" id="calMode" role="tablist" aria-label="Calendar view">
+            <button data-mode="day">Day</button><button data-mode="week">Week</button
+            ><button data-mode="month">Month</button>
+          </div>
+          <div class="card cal">
+            <div class="calhead">
+              <button class="nav" id="prev" aria-label="Previous">‹</button
+              ><strong id="month"></strong
+              ><button class="nav" id="next" aria-label="Next">›</button>
+            </div>
+            <div class="grid" id="grid"></div>
+            <div class="wk" id="week"></div>
+          </div>
+          <div class="card plan">
+            <h2 id="selTitle"></h2>
+            <div id="meals" class="list meals-list"></div>
+          </div>
+        </section>
         <div class="card account-card">
           <h2>Account</h2>
           <p id="accountStatus" role="status">
@@ -102,26 +122,6 @@
           </form>
           <button class="sec" id="signOut" type="button" hidden>Sign out</button>
         </div>
-        <section id="planView" hidden>
-          <h2 class="page-title">Calendar</h2>
-          <div class="seg" id="calMode" role="tablist" aria-label="Calendar view">
-            <button data-mode="day">Day</button><button data-mode="week">Week</button
-            ><button data-mode="month">Month</button>
-          </div>
-          <div class="card cal">
-            <div class="calhead">
-              <button class="nav" id="prev" aria-label="Previous">‹</button
-              ><strong id="month"></strong
-              ><button class="nav" id="next" aria-label="Next">›</button>
-            </div>
-            <div class="grid" id="grid"></div>
-            <div class="wk" id="week"></div>
-          </div>
-          <div class="card plan">
-            <h2 id="selTitle"></h2>
-            <div id="meals" class="list meals-list"></div>
-          </div>
-        </section>
       </section>
     </main>
     <nav class="tabs" aria-label="Main navigation">
