@@ -714,79 +714,120 @@ html[data-auth="out"] .editonly {
 }
 
 .wk {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-.wrow {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  align-content: start;
-  gap: 6px;
+.week-grid {
+  width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+}
+
+.week-grid th:first-child {
+  width: 90px;
+}
+
+.week-grid thead th,
+.week-grid tbody th {
+  padding: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.week-grid tbody th {
+  text-align: left;
+}
+
+.week-day,
+.week-cell {
   width: 100%;
   min-width: 0;
-  min-height: 92px;
-  text-align: left;
-  border: 0;
-  border-radius: 10px;
-  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
   color: var(--text);
   font: inherit;
-  padding: 10px;
   cursor: pointer;
 }
 
-.wrow:hover {
-  background: var(--fill);
-}
-
-.wrow.sel {
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-
-.wrow .wd {
+.week-day {
+  min-height: 46px;
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  line-height: 1.2;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px;
 }
 
-.wrow .wd b {
-  display: inline;
-  font-size: 17px;
-  color: var(--text);
-  letter-spacing: -0.02em;
+.week-day.sel {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-.wrow.today .wd b {
+.week-day.today b {
   color: var(--accent);
 }
 
-.wrow .wm {
+.week-cell {
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 5px 3px;
+  text-align: center;
+}
+
+.week-cell:hover,
+.week-day:hover {
+  background: var(--fill);
+}
+
+.week-cell.sel {
+  border-color: var(--accent);
+}
+
+.week-photo,
+.week-emoji {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 6px;
+}
+
+.week-photo {
+  object-fit: cover;
+}
+
+.week-emoji {
   display: grid;
-  gap: 2px;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 1.35;
-  align-content: start;
+  place-items: center;
+  background: var(--fill);
+  font-size: 24px;
+}
+
+.week-title {
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: anywhere;
-}
-
-.wrow .wm small {
-  color: var(--muted);
   font-size: 10px;
+  line-height: 1.2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.wrow .wm em {
-  font-style: normal;
+.week-empty {
   color: var(--muted);
+  background: transparent;
 }
 
 .cal {
