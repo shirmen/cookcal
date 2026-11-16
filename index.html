@@ -55,10 +55,12 @@ button.save:hover{opacity:.9}button.save:active{transform:scale(.98);opacity:.8}
 #list{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
 #list::-webkit-scrollbar{display:none}
 #list>.card{flex:0 0 100%;scroll-snap-align:start}
-.dots{display:flex;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+#carousel{position:relative;container-type:inline-size}
+.dots{position:absolute;left:50%;transform:translateX(-50%);top:calc(100cqw - 34px);display:flex;justify-content:center;gap:6px;pointer-events:none}
+.dots{padding:5px 8px;border-radius:12px;background:rgba(0,0,0,.35)}
 .dots:empty{display:none}
-.dots button{width:7px;height:7px;padding:0;border:0;border-radius:50%;background:var(--line);cursor:pointer;transition:background .2s,transform .2s}
-.dots button.on{background:var(--accent);transform:scale(1.25)}
+.dots button{pointer-events:auto;width:8px;height:8px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer;transition:background .2s,transform .2s}
+.dots button.on{background:#fff;transform:scale(1.25)}
 #list>.empty{flex:1}
 .card{cursor:pointer;overflow:hidden;animation:in .3s ease;transition:opacity .25s,transform .25s}
 .card.out{opacity:0;transform:scale(.97)}
@@ -153,8 +155,8 @@ html[data-mode=edit][data-auth=out] .signin{display:block!important}
     <button class="save" type="submit" id="saveBtn">Save recipe</button>
     <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
   </form>
-  <div class="list" id="list"></div>
-  <div class="dots" id="dots"></div>
+  <div id="carousel"><div class="list" id="list"></div>
+  <div class="dots" id="dots"></div></div>
   <button class="sec share editonly" id="signout" hidden>Sign out</button>
   <button class="sec share signin" id="signin">🔒 Owner sign-in</button>
   </section>
@@ -582,8 +584,8 @@ $('scanBtn').onclick=async()=>{
 };
 function card(r){
   const d=document.createElement('article');
-  d.className='card';d.dataset.id=r.id;
-  d.innerHTML='<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit editonly" aria-label="Edit recipe">✎</button><button class="del editonly" aria-label="Delete recipe">×</button></div><button class="toggle">View recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
+  d.className='card open';d.dataset.id=r.id;
+  d.innerHTML='<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit editonly" aria-label="Edit recipe">✎</button><button class="del editonly" aria-label="Delete recipe">×</button></div><button class="toggle">Hide recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
   const hero=d.querySelector('.hero');
   if(r.photo)hero.style.backgroundImage=`url(${r.photo})`;else hero.textContent=r.emoji||'🍽️';
   d.querySelector('h2').textContent=r.title;
