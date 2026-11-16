@@ -52,7 +52,8 @@ body {
   letter-spacing: -0.01em;
   display: flex;
   justify-content: center;
-  padding: max(32px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  padding: max(32px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   touch-action: manipulation;
 }
 
@@ -369,7 +370,7 @@ button.save:active {
   display: none;
 }
 
-#list>.card {
+#list > .card {
   flex: 0 0 100%;
   scroll-snap-align: start;
 }
@@ -404,7 +405,7 @@ button.save:active {
   transform: scale(1.25);
 }
 
-#list>.empty {
+#list > .empty {
   flex: 1;
 }
 
@@ -498,7 +499,7 @@ button.save:active {
   grid-template-rows: 1fr;
 }
 
-.detail>div {
+.detail > div {
   overflow: hidden;
 }
 
@@ -564,7 +565,7 @@ li {
   font-size: 13px;
 }
 
-.gi input:checked+span {
+.gi input:checked + span {
   color: var(--muted);
   text-decoration: line-through;
 }
@@ -920,15 +921,6 @@ button.add:active {
   transform: scale(0.94);
 }
 
-html[data-auth="out"] .editonly,
-.signin {
-  display: none !important;
-}
-
-html[data-auth="out"] .signin {
-  display: block !important;
-}
-
 .edit {
   border: 0;
   background: none;
@@ -957,23 +949,6 @@ html[data-auth="out"] .signin {
   font-size: 15px;
   padding: 8px;
   cursor: pointer;
-}
-
-.share {
-  display: block;
-  margin: 0 auto 20px;
-}
-
-.signin {
-  width: 100%;
-  padding: 12px;
-  min-height: 46px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff !important;
-  background: var(--accent) !important;
-  border-radius: 8px;
-  text-align: center;
 }
 
 .meals-list {

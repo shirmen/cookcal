@@ -3,35 +3,27 @@ const $ = (id) => document.getElementById(id);
 const PKEY = "recipe-box-plan-v1";
 const CFG = window.COOKCAL_FIREBASE;
 const REMOTE = !!(CFG && CFG.apiKey && !/^YOUR/.test(CFG.apiKey));
-let db, fs, authApi, auth;
+let db, fs;
 if (REMOTE) {
   const V = "https://www.gstatic.com/firebasejs/10.12.2/";
-  const [app, f, a] = await Promise.all([
+  const [app, f] = await Promise.all([
     import(V + "firebase-app.js"),
     import(V + "firebase-firestore.js"),
-    import(V + "firebase-auth.js"),
   ]);
   const inst = app.initializeApp(CFG);
   db = f.getFirestore(inst);
   fs = f;
-  authApi = a;
-  auth = a.getAuth(inst);
-  await auth.authStateReady();
-  document.documentElement.dataset.auth = "out";
 }
 const fail = (e) => {
   console.error(e);
-  alert(
-    "Could not save: " +
-    (e.code === "permission-denied" ? "only the owner can make changes." : e.message),
-  );
+  alert("Could not save: " + (e.code === "permission-denied" ? "permission denied." : e.message));
 };
 let recipes;
 if (REMOTE) recipes = [];
 else
   try {
     recipes = JSON.parse(localStorage.getItem(KEY));
-  } catch { }
+  } catch {}
 if (!Array.isArray(recipes)) {
   recipes = [
     {
@@ -313,7 +305,7 @@ async function fetchVia(url, kind) {
       if (!r.ok) continue;
       if (p.json) return (await r.json()).contents || "";
       return await r[kind]();
-    } catch { }
+    } catch {}
   }
   throw new Error("Could not fetch that page.");
 }
@@ -338,7 +330,7 @@ async function fetchRecipe(url) {
       reached = true;
       const rec = recipeFromHtml(html);
       if (rec && (rec.ing.length || rec.steps.length)) return rec;
-    } catch { }
+    } catch {}
   }
   // Last resort: a reader service that returns the page as plain text, parsed by headings.
   try {
@@ -360,7 +352,7 @@ async function fetchRecipe(url) {
       }
       reached = true;
     }
-  } catch { }
+  } catch {}
   return reached ? null : undefined;
 }
 $("importBtn").onclick = async () => {
@@ -410,7 +402,7 @@ async function setImage(src, base) {
     drop.style.backgroundImage = `url(${photo})`;
     drop.classList.add("has");
     drop.querySelector("span").textContent = "Change photo";
-  } catch { }
+  } catch {}
 }
 const STOP = new Set([
   "recipe",
@@ -779,7 +771,7 @@ function card(r) {
   d.className = "card";
   d.dataset.id = r.id;
   d.innerHTML =
-    '<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit editonly" aria-label="Edit recipe">✎</button><button class="del editonly" aria-label="Delete recipe">×</button></div><button class="toggle">View recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
+    '<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit" aria-label="Edit recipe">✎</button><button class="del" aria-label="Delete recipe">×</button></div><button class="toggle">View recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
   const hero = d.querySelector(".hero");
   if (r.photo) hero.style.backgroundImage = `url(${r.photo})`;
   else hero.textContent = r.emoji || "🍽️";
@@ -925,7 +917,7 @@ let plan;
 if (!REMOTE)
   try {
     plan = JSON.parse(localStorage.getItem(PKEY));
-  } catch { }
+  } catch {}
 if (REMOTE) plan = {};
 const SLOTS = [
   ["breakfast", "Breakfast"],
@@ -968,7 +960,7 @@ function savePlan() {
   }
   try {
     localStorage.setItem(PKEY, JSON.stringify(plan));
-  } catch { }
+  } catch {}
 }
 let sel = ymd(today),
   calMode = localStorage.getItem("cookcal-calview");
@@ -1106,7 +1098,7 @@ function renderDay() {
         m.className = "meal";
         m.dataset.idx = e.i;
         m.innerHTML =
-          '<div class="th"></div><span></span><button class="del editonly" aria-label="Remove from day">×</button>';
+          '<div class="th"></div><span></span><button class="del" aria-label="Remove from day">×</button>';
         const th = m.querySelector(".th");
         if (r.photo) th.style.backgroundImage = `url(${r.photo})`;
         else th.textContent = r.emoji || "🍽️";
@@ -1115,7 +1107,7 @@ function renderDay() {
       });
     if (recipes.length) {
       const sl = document.createElement("select");
-      sl.className = "editonly add";
+      sl.className = "add";
       sl.dataset.slot = key;
       sl.setAttribute("aria-label", "Add recipe to " + label.toLowerCase());
       sl.innerHTML = '<option value="">＋ Add a recipe…</option>';
@@ -1161,7 +1153,7 @@ $("calMode").addEventListener("click", (e) => {
   calMode = m;
   try {
     localStorage.setItem("cookcal-calview", m);
-  } catch { }
+  } catch {}
   renderCal();
 });
 $("meals").addEventListener("change", (e) => {
@@ -1197,7 +1189,7 @@ const GKEY = "cookcal-groceries-v1";
 let checked;
 try {
   checked = JSON.parse(localStorage.getItem(GKEY));
-} catch { }
+} catch {}
 if (!checked || typeof checked !== "object" || Array.isArray(checked)) checked = {};
 const monday = (d) => {
   const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -1226,21 +1218,21 @@ const UNITS = {
 };
 const UNIT_RE = new RegExp(
   "^(" +
-  [
-    ...Object.keys(UNITS),
-    "clove",
-    "can",
-    "slice",
-    "pinch",
-    "bunch",
-    "stick",
-    "pkg",
-    "package",
-    "piece",
-    "sprig",
-    "head",
-  ].join("|") +
-  ")s?\\b\\.?\\s*(?:of\\s+)?",
+    [
+      ...Object.keys(UNITS),
+      "clove",
+      "can",
+      "slice",
+      "pinch",
+      "bunch",
+      "stick",
+      "pkg",
+      "package",
+      "piece",
+      "sprig",
+      "head",
+    ].join("|") +
+    ")s?\\b\\.?\\s*(?:of\\s+)?",
   "i",
 );
 const DESC =
@@ -1276,9 +1268,9 @@ function parseIng(t) {
   }
   if (!(qty > 0)) return null;
   let rest = m[2]
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/,.*$/, "")
-    .trim(),
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/,.*$/, "")
+      .trim(),
     unit = "",
     fam = "n",
     f = 1,
@@ -1359,20 +1351,20 @@ function fmtItem(it) {
   }
   const unitTxt = u
     ? ([
-      "cup",
-      "clove",
-      "can",
-      "slice",
-      "bunch",
-      "stick",
-      "piece",
-      "sprig",
-      "head",
-      "package",
-      "pkg",
-    ].includes(u)
-      ? plural(q, u)
-      : u) + " "
+        "cup",
+        "clove",
+        "can",
+        "slice",
+        "bunch",
+        "stick",
+        "piece",
+        "sprig",
+        "head",
+        "package",
+        "pkg",
+      ].includes(u)
+        ? plural(q, u)
+        : u) + " "
     : "";
   return `${fmtN(q)} ${unitTxt}${it.fam === "n" ? plural(q, it.name) : it.name}`;
 }
@@ -1430,7 +1422,7 @@ function renderShop() {
         else delete checked[key];
         try {
           localStorage.setItem(GKEY, JSON.stringify(checked));
-        } catch { }
+        } catch {}
       };
       box.appendChild(l);
     });
@@ -1443,7 +1435,7 @@ $("wnext").onclick = () => {
   week.setDate(week.getDate() + 7);
   renderShop();
 };
-/* Live sync + owner sign-in (Firebase mode only) */
+/* Live sync (Firebase mode only) */
 function refresh() {
   render();
   renderCal();
@@ -1471,30 +1463,4 @@ if (REMOTE) {
     },
     fail,
   );
-  authApi.onAuthStateChanged(auth, (u) => {
-    document.documentElement.dataset.auth = u ? "in" : "out";
-    $("signout").hidden = !u;
-  });
-  $("signin").onclick = async () => {
-    const prov = new authApi.GoogleAuthProvider();
-    const btn = $("signin");
-    btn.textContent = "Opening Google…";
-    setTimeout(() => (btn.textContent = "🔒 Owner sign-in"), 4000);
-    try {
-      await authApi.signInWithPopup(auth, prov);
-    } catch (e) {
-      if (
-        ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"].includes(e.code)
-      ) {
-        try {
-          await authApi.signInWithRedirect(auth, prov);
-          return;
-        } catch (e2) {
-          e = e2;
-        }
-      }
-      alert("Sign-in failed: " + (e.code || e.message));
-    }
-  };
-  $("signout").onclick = () => authApi.signOut(auth);
 }

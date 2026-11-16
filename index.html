@@ -23,9 +23,9 @@
     <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button
         data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
     <section id="recipesView">
-      <div class="recipe-actions editonly"><button class="add" type="button" id="toggleForm" aria-label="Add recipe"
+      <div class="recipe-actions"><button class="add" type="button" id="toggleForm" aria-label="Add recipe"
           aria-expanded="false">+</button></div>
-      <form id="form" class="editonly" hidden>
+      <form id="form" hidden>
         <div class="imp"><input type="text" id="q" placeholder="Find the best recipe by food name"
             aria-label="Food name"><button type="button" id="searchBtn">Search</button></div>
         <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import"
@@ -43,8 +43,6 @@
       </form>
       <div class="list" id="list"></div>
       <div class="dots" id="dots"></div>
-      <button class="sec share editonly" id="signout" hidden>Sign out</button>
-      <button class="sec share signin" id="signin">🔒 Owner sign-in</button>
     </section>
     <section id="shopView" hidden>
       <div class="card cal">
