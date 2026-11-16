@@ -21,11 +21,6 @@
     <main>
       <h1>CookCal</h1>
       <div class="sub" id="count"></div>
-      <nav class="tabs">
-        <button class="on" data-tab="recipes">Recipes</button
-        ><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button
-        ><button data-tab="account">Account</button>
-      </nav>
       <section id="recipesView">
         <div class="recipe-actions editonly">
           <button
@@ -135,6 +130,35 @@
         </div>
       </section>
     </main>
+    <nav class="tabs" aria-label="Main navigation">
+      <button class="on" data-tab="recipes" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
+        </svg>
+        <span>Home</span>
+      </button>
+      <button data-tab="plan">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4M8 3v4M3 10h18" />
+        </svg>
+        <span>Calendar</span>
+      </button>
+      <button data-tab="shop">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 4h14l1 17H4L5 4Z" />
+          <path d="M9 8a3 3 0 0 0 6 0" />
+        </svg>
+        <span>Groceries</span>
+      </button>
+      <button data-tab="account">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+        <span>Profile</span>
+      </button>
+    </nav>
     <div id="busy" role="alert" aria-live="polite" hidden>
       <div><i></i><span id="busyMsg"></span></div>
     </div>

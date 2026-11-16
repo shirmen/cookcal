@@ -1190,11 +1190,15 @@ $("meals").addEventListener("click", (e) => {
   renderCal();
 });
 document.querySelector(".tabs").addEventListener("click", (e) => {
-  const t = e.target.dataset.tab;
-  if (!t) return;
-  document
-    .querySelectorAll(".tabs button")
-    .forEach((b) => b.classList.toggle("on", b === e.target));
+  const button = e.target.closest("button[data-tab]");
+  if (!button) return;
+  const t = button.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach((b) => {
+    const active = b === button;
+    b.classList.toggle("on", active);
+    if (active) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
   $("recipesView").hidden = t !== "recipes";
   $("planView").hidden = t !== "plan";
   $("shopView").hidden = t !== "shop";
