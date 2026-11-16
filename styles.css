@@ -652,6 +652,13 @@ html[data-auth="out"] .editonly {
   gap: 12px;
 }
 
+.page-title {
+  margin: 0 0 14px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 .account-card h2,
 .account-card p {
   margin: 0;
