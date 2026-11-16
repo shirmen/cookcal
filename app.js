@@ -3,16 +3,24 @@ const $ = (id) => document.getElementById(id);
 const PKEY = "recipe-box-plan-v1";
 const CFG = window.COOKCAL_FIREBASE;
 const REMOTE = !!(CFG && CFG.apiKey && !/^YOUR/.test(CFG.apiKey));
-let db, fs;
+if (REMOTE) document.documentElement.dataset.auth = "out";
+let db,
+  fs,
+  auth,
+  authApi,
+  signedInUser = null;
 if (REMOTE) {
   const V = "https://www.gstatic.com/firebasejs/10.12.2/";
-  const [app, f] = await Promise.all([
+  const [app, f, a] = await Promise.all([
     import(V + "firebase-app.js"),
     import(V + "firebase-firestore.js"),
+    import(V + "firebase-auth.js"),
   ]);
   const inst = app.initializeApp(CFG);
   db = f.getFirestore(inst);
   fs = f;
+  auth = a.getAuth(inst);
+  authApi = a;
 }
 const fail = (e) => {
   console.error(e);
@@ -73,6 +81,7 @@ if (!Array.isArray(recipes)) {
 let remoteSnap = new Map();
 const norm = (r) => JSON.parse(JSON.stringify({ ...r, id: String(r.id) }));
 function pushRecipes() {
+  if (!signedInUser) return;
   const cur = new Map(recipes.map((r) => [String(r.id), norm(r)]));
   for (const [id, r] of cur)
     if (remoteSnap.get(id) !== JSON.stringify(r))
@@ -82,6 +91,10 @@ function pushRecipes() {
 }
 function save() {
   if (REMOTE) {
+    if (!signedInUser) {
+      alert("Sign in from the Account tab to edit shared recipes.");
+      return false;
+    }
     pushRecipes();
     return true;
   }
@@ -771,7 +784,7 @@ function card(r) {
   d.className = "card";
   d.dataset.id = r.id;
   d.innerHTML =
-    '<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit" aria-label="Edit recipe">✎</button><button class="del" aria-label="Delete recipe">×</button></div><button class="toggle">View recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
+    '<div class="hero"></div><div class="body"><div class="head"><h2></h2><button class="edit editonly" aria-label="Edit recipe">✎</button><button class="del editonly" aria-label="Delete recipe">×</button></div><button class="toggle">View recipe</button><div class="detail"><div><h3>Ingredients</h3><ul></ul><h3>Steps</h3><ol></ol></div></div></div>';
   const hero = d.querySelector(".hero");
   if (r.photo) hero.style.backgroundImage = `url(${r.photo})`;
   else hero.textContent = r.emoji || "🍽️";
@@ -955,12 +968,17 @@ if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
 } else plan = normPlan(plan);
 function savePlan() {
   if (REMOTE) {
+    if (!signedInUser) {
+      alert("Sign in from the Account tab to edit the shared meal plan.");
+      return false;
+    }
     fs.setDoc(fs.doc(db, "meta", "plan"), { json: JSON.stringify(plan) }).catch(fail);
-    return;
+    return true;
   }
   try {
     localStorage.setItem(PKEY, JSON.stringify(plan));
   } catch {}
+  return true;
 }
 let sel = ymd(today),
   calMode = localStorage.getItem("cookcal-calview");
@@ -1098,7 +1116,7 @@ function renderDay() {
         m.className = "meal";
         m.dataset.idx = e.i;
         m.innerHTML =
-          '<div class="th"></div><span></span><button class="del" aria-label="Remove from day">×</button>';
+          '<div class="th"></div><span></span><button class="del editonly" aria-label="Remove from day">×</button>';
         const th = m.querySelector(".th");
         if (r.photo) th.style.backgroundImage = `url(${r.photo})`;
         else th.textContent = r.emoji || "🍽️";
@@ -1107,7 +1125,7 @@ function renderDay() {
       });
     if (recipes.length) {
       const sl = document.createElement("select");
-      sl.className = "add";
+      sl.className = "add editonly";
       sl.dataset.slot = key;
       sl.setAttribute("aria-label", "Add recipe to " + label.toLowerCase());
       sl.innerHTML = '<option value="">＋ Add a recipe…</option>';
@@ -1180,9 +1198,82 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
   $("recipesView").hidden = t !== "recipes";
   $("planView").hidden = t !== "plan";
   $("shopView").hidden = t !== "shop";
+  $("accountView").hidden = t !== "account";
   if (t === "plan") renderCal();
   if (t === "shop") renderShop();
 });
+
+/* Account / shared edit access */
+let authMode = "login";
+function authMessage(message, isError = false) {
+  const status = $("accountStatus");
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+function setAuthMode(mode) {
+  authMode = mode;
+  $("authSubmit").textContent = mode === "signup" ? "Create account" : "Log in";
+  $("authToggle").textContent = mode === "signup" ? "Back to log in" : "Create account";
+  $("authPassword").autocomplete = mode === "signup" ? "new-password" : "current-password";
+  $("resetPassword").hidden = mode === "signup";
+}
+$("authToggle").onclick = () => setAuthMode(authMode === "login" ? "signup" : "login");
+$("authForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!REMOTE) return authMessage("Sign-in is available when Firebase is configured.", true);
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+  $("authSubmit").disabled = true;
+  try {
+    if (authMode === "signup") await authApi.createUserWithEmailAndPassword(auth, email, password);
+    else await authApi.signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    const messages = {
+      "auth/email-already-in-use": "An account already uses that email. Try logging in.",
+      "auth/invalid-credential": "Email or password is incorrect.",
+      "auth/weak-password": "Choose a stronger password (at least 6 characters).",
+      "auth/invalid-email": "Enter a valid email address.",
+      "auth/too-many-requests": "Too many attempts. Try again later.",
+    };
+    authMessage(messages[e.code] || e.message, true);
+  } finally {
+    $("authSubmit").disabled = false;
+  }
+});
+$("resetPassword").onclick = async () => {
+  if (!REMOTE) return authMessage("Sign-in is available when Firebase is configured.", true);
+  const email = $("authEmail").value.trim();
+  if (!email) {
+    $("authEmail").focus();
+    return authMessage("Enter your email address first.", true);
+  }
+  try {
+    await authApi.sendPasswordResetEmail(auth, email);
+    authMessage("If an account exists for that email, a password reset link has been sent.");
+  } catch (e) {
+    authMessage(e.message, true);
+  }
+};
+$("signOut").onclick = () => authApi.signOut(auth).catch((e) => authMessage(e.message, true));
+if (REMOTE) {
+  $("authForm").hidden = false;
+  authApi.onAuthStateChanged(auth, (user) => {
+    signedInUser = user;
+    document.documentElement.dataset.auth = user ? "in" : "out";
+    $("authForm").hidden = !!user;
+    $("signOut").hidden = !user;
+    if (user)
+      authMessage(
+        `Signed in as ${user.email || "your account"}. You can edit shared recipes and meal plans.`,
+      );
+    else authMessage("Sign in to add or edit shared recipes and meal plans.");
+  });
+} else {
+  $("authForm").hidden = true;
+  $("authToggle").hidden = true;
+  $("resetPassword").hidden = true;
+  authMessage("Accounts are unavailable in local mode.");
+}
 
 /* Weekly grocery list (Monday–Sunday) */
 const GKEY = "cookcal-groceries-v1";

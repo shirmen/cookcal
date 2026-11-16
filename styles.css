@@ -103,6 +103,8 @@ label.f {
 }
 
 input[type="text"],
+input[type="email"],
+input[type="password"],
 textarea,
 select {
   width: 100%;
@@ -572,7 +574,7 @@ li {
 
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   border-bottom: 1px solid var(--line);
   margin: 0 0 20px;
 }
@@ -603,6 +605,42 @@ li {
 
 [hidden] {
   display: none !important;
+}
+
+html[data-auth="out"] .editonly {
+  display: none !important;
+}
+
+.account-card {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.account-card h2,
+.account-card p {
+  margin: 0;
+}
+
+.account-card p {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.account-card p.error {
+  color: #b42318;
+}
+
+.account-card form {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+}
+
+.account-actions {
+  display: grid;
+  gap: 8px;
 }
 
 .seg {
