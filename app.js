@@ -933,7 +933,6 @@ const SLOTS = [
   ["breakfast", "Breakfast"],
   ["snack1", "Morning snack"],
   ["lunch", "Lunch"],
-  ["snack2", "Afternoon snack"],
   ["dinner", "Dinner"],
 ];
 // Older plans stored bare recipe ids per day; treat those as dinner.
@@ -942,11 +941,18 @@ function normPlan(p) {
   if (!p || typeof p !== "object" || Array.isArray(p)) return out;
   for (const k in p) {
     if (!Array.isArray(p[k])) continue;
-    const a = p[k].map((x) =>
-      x && typeof x === "object"
-        ? { id: x.id, slot: SLOTS.some((s) => s[0] === x.slot) ? x.slot : "dinner" }
-        : { id: x, slot: "dinner" },
-    );
+    const usedSlots = new Set();
+    const a = p[k]
+      .map((x) =>
+        x && typeof x === "object"
+          ? { id: x.id, slot: SLOTS.some((s) => s[0] === x.slot) ? x.slot : "dinner" }
+          : { id: x, slot: "dinner" },
+      )
+      .filter((entry) => {
+        if (usedSlots.has(entry.slot)) return false;
+        usedSlots.add(entry.slot);
+        return true;
+      });
     if (a.length) out[k] = a;
   }
   return out;
@@ -1120,7 +1126,7 @@ function renderDay() {
         m.querySelector("span").textContent = r.title;
         sec.appendChild(m);
       });
-    if (recipes.length) {
+    if (recipes.length && !entries.some((e) => e.slot === key)) {
       const sl = document.createElement("select");
       sl.className = "add editonly";
       sl.dataset.slot = key;
@@ -1174,7 +1180,12 @@ $("calMode").addEventListener("click", (e) => {
 $("meals").addEventListener("change", (e) => {
   const sl = e.target.closest("select.add");
   if (!sl || !sl.value) return;
-  (plan[sel] = plan[sel] || []).push({ id: sl.value, slot: sl.dataset.slot });
+  const dayPlan = plan[sel] || [];
+  if (dayPlan.some((entry) => entry.slot === sl.dataset.slot)) {
+    sl.value = "";
+    return;
+  }
+  (plan[sel] = dayPlan).push({ id: sl.value, slot: sl.dataset.slot });
   savePlan();
   renderCal();
 });
@@ -1197,7 +1208,10 @@ function showPage(t, button) {
   $("addView").hidden = t !== "add";
   $("shopView").hidden = t !== "shop";
   $("accountView").hidden = t !== "account";
-  if (t === "account" && signedInUser) renderCal();
+  if (t === "account") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (signedInUser) renderCal();
+  }
   if (t === "shop") renderShop();
 }
 document.querySelector(".tabs").addEventListener("click", (e) => {
@@ -1282,6 +1296,7 @@ if (REMOTE) {
         `Signed in as ${user.email || "your account"}. You can edit shared recipes and meal plans.`,
       );
       renderCal();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } else authMessage("Sign in to add or edit shared recipes and meal plans.");
   });
 } else {
@@ -1509,7 +1524,7 @@ function renderShop() {
   box.innerHTML = "";
   if (!items.size) {
     box.innerHTML =
-      '<div class="hint shop-empty-hint">No recipes planned this week. Add some in the Calendar tab.</div>';
+      '<div class="hint shop-empty-hint">No recipes planned this week. Add some in your Meal Plan.</div>';
     return;
   }
   [...items]
