@@ -1277,11 +1277,12 @@ if (REMOTE) {
     $("authForm").hidden = !!user;
     $("signOut").hidden = !user;
     $("planView").hidden = !user;
-    if (user)
+    if (user) {
       authMessage(
         `Signed in as ${user.email || "your account"}. You can edit shared recipes and meal plans.`,
       );
-    else authMessage("Sign in to add or edit shared recipes and meal plans.");
+      renderCal();
+    } else authMessage("Sign in to add or edit shared recipes and meal plans.");
   });
 } else {
   $("authForm").hidden = true;
