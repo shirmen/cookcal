@@ -103,6 +103,11 @@ h1 {
   margin-bottom: 22px;
 }
 
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
 form,
 .card {
   background: var(--card);
@@ -678,6 +683,152 @@ html[data-auth="out"] .editonly {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+.create-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.create-choice {
+  min-width: 0;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.create-choice--search .imp,
+.create-choice--import .imp {
+  width: 100%;
+  align-self: stretch;
+}
+
+.create-choice--search {
+  grid-column: 1 / -1;
+  cursor: default;
+}
+
+.create-choice.create-choice--search:hover {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+.create-choice--search .imp input {
+  flex: 1;
+  min-width: 0;
+}
+
+.create-choice--import {
+  grid-column: 1 / -1;
+  cursor: default;
+}
+
+.create-choice--import .imp input {
+  flex: 1;
+  min-width: 0;
+}
+
+.create-choice.create-choice--import:hover {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+.create-choice--photo {
+  grid-column: 1 / -1;
+  cursor: default;
+}
+
+.create-choice--photo .drop {
+  width: 100%;
+}
+
+.create-choice.create-choice--photo:hover {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+.create-choice:hover {
+  background: var(--fill);
+  border-color: var(--muted);
+}
+
+.create-icon {
+  color: var(--accent);
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.create-icon svg {
+  width: 36px;
+  height: 36px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.create-back {
+  justify-self: start;
+  padding: 0 0 4px;
+}
+
+.create-method-panel {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.create-method-panel h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+#manualFields,
+#photoAction {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-preview {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.photo-preview img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
 }
 
 .account-auth h2,

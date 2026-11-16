@@ -127,12 +127,14 @@ function shrink(file) {
 let photoFile = null;
 async function pick(f) {
   if (!f || !f.type.startsWith("image/")) return;
+  if (createMode !== "photo") setCreateMode("photo");
   photoFile = f;
   $("scanBtn").hidden = false;
   photo = await shrink(f);
   $("drop").style.backgroundImage = `url(${photo})`;
   $("drop").classList.add("has");
   $("drop").querySelector("span").textContent = "Change photo";
+  updateRecipePreview();
 }
 $("file").onchange = (e) => pick(e.target.files[0]);
 const drop = $("drop");
@@ -370,6 +372,7 @@ async function fetchRecipe(url) {
   return reached ? null : undefined;
 }
 $("importBtn").onclick = async () => {
+  if (createMode !== "import") setCreateMode("import");
   let u = $("url").value.trim();
   if (!u) return;
   if (!/^https?:\/\//i.test(u)) u = "https://" + u;
@@ -402,6 +405,9 @@ $("importBtn").onclick = async () => {
         : "Imported — review and save.",
     );
     $("url").value = "";
+    $("createOptions").hidden = true;
+    $("addTitle").hidden = false;
+    $("addTitle").textContent = "Create a recipe";
   } catch (e) {
     status(e.message);
   } finally {
@@ -416,6 +422,7 @@ async function setImage(src, base) {
     drop.style.backgroundImage = `url(${photo})`;
     drop.classList.add("has");
     drop.querySelector("span").textContent = "Change photo";
+    updateRecipePreview();
   } catch {}
 }
 const STOP = new Set([
@@ -567,6 +574,7 @@ async function applyCandidate(r) {
     drop.style.backgroundImage = "";
     drop.classList.remove("has");
     drop.querySelector("span").textContent = "📷 Upload a photo";
+    updateRecipePreview();
   }
   fillForm(r);
   await setImage(r.image, r.base || location.href);
@@ -574,6 +582,7 @@ async function applyCandidate(r) {
   status(`“${r.title}” from ${r.source} (${ci + 1} of ${cands.length}) — review and save.`);
 }
 $("searchBtn").onclick = async () => {
+  if (createMode !== "search") setCreateMode("search");
   const q = $("q").value.trim();
   if (!q) return;
   const b = $("searchBtn");
@@ -595,6 +604,9 @@ $("searchBtn").onclick = async () => {
     }
     await applyCandidate(cands[0]);
     $("q").value = "";
+    $("createOptions").hidden = true;
+    $("addTitle").hidden = false;
+    $("addTitle").textContent = "Create a recipe";
   } catch (e) {
     status(e.message);
   } finally {
@@ -824,6 +836,7 @@ function render() {
   $("count").textContent = `${recipes.length} saved recipe${recipes.length === 1 ? "" : "s"}`;
 }
 let editing = null;
+let createMode = null;
 function setFormOpen(open) {
   showPage(
     open ? "add" : "recipes",
@@ -832,16 +845,70 @@ function setFormOpen(open) {
     ),
   );
 }
+function setCreateMode(mode) {
+  createMode = mode;
+  const inlineMode = mode === "search" || mode === "import" || mode === "photo";
+  $("createOptions").hidden = !!mode && !inlineMode;
+  $("form").hidden = !mode;
+  $("searchAction").hidden = true;
+  $("importAction").hidden = true;
+  const internetImageMode = mode === "search" || mode === "import";
+  $("photoPreview").hidden = !internetImageMode;
+  $("photoAction").hidden = !mode || internetImageMode;
+  $("manualFields").hidden = !mode;
+  $("backCreateOptions").hidden = mode === "edit";
+
+  $("createOptions").querySelector(".create-choice--search").hidden =
+    mode === "import" || mode === "photo";
+  $("createOptions").querySelector(".create-choice--import").hidden =
+    mode === "search" || mode === "photo";
+  $("createOptions").querySelector(".create-choice--photo").hidden =
+    mode === "search" || mode === "import";
+  document.querySelectorAll("#createOptions [data-create-mode]").forEach((el) => {
+    el.hidden = !!mode;
+  });
+
+  const titles = {
+    search: "Find a recipe by food name",
+    import: "Import a recipe from a link",
+    photo: "Upload a recipe photo",
+    manual: "Create a recipe manually",
+    edit: "Edit recipe",
+  };
+  $("addTitle").textContent = titles[mode] || "Create a recipe";
+  $("addTitle").hidden = mode === "search";
+  updateRecipePreview();
+}
+function updateRecipePreview() {
+  const image = $("photoPreviewImage");
+  image.hidden = !photo;
+  $("photoPreviewEmpty").hidden = !!photo;
+  if (photo) image.src = photo;
+  else image.removeAttribute("src");
+}
+$("createOptions").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-create-mode]");
+  if (button) setCreateMode(button.dataset.createMode);
+});
+$("createOptions").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const button = e.target.closest("[data-create-mode]");
+  if (!button) return;
+  e.preventDefault();
+  setCreateMode(button.dataset.createMode);
+});
+$("backCreateOptions").onclick = () => setCreateMode(null);
 function resetForm() {
   editing = null;
   $("form").reset();
+  setCreateMode(null);
   setFormOpen(false);
-  $("addTitle").textContent = "Add recipe";
   photo = null;
   drop.style.backgroundImage = "";
   drop.classList.remove("has");
   drop.querySelector("span").textContent = "📷 Upload a photo";
   photoFile = null;
+  updateRecipePreview();
   $("scanBtn").hidden = true;
   $("nextBtn").hidden = true;
   cands = [];
@@ -888,7 +955,7 @@ $("list").addEventListener("click", (e) => {
     const r = recipes.find((x) => x.id == c.dataset.id);
     editing = r.id;
     setFormOpen(true);
-    $("addTitle").textContent = "Edit recipe";
+    setCreateMode("edit");
     photo = r.photo || null;
     photoFile = null;
     $("scanBtn").hidden = !photo;

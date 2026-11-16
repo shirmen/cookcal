@@ -29,44 +29,96 @@
         <div class="dots" id="dots"></div>
       </section>
       <section id="addView" hidden>
-        <h2 class="page-title" id="addTitle">Add recipe</h2>
-        <form id="form" class="editonly">
-          <div class="imp">
-            <input
-              type="text"
-              id="q"
-              placeholder="Find the best recipe by food name"
-              aria-label="Food name"
-            /><button type="button" id="searchBtn">Search</button>
+        <h2 class="page-title" id="addTitle">Create a recipe</h2>
+        <div class="create-options" id="createOptions">
+          <div class="create-choice create-choice--search">
+            <span class="create-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="10.8" cy="10.8" r="7.3" />
+                <path d="m16.2 16.2 4.3 4.3" />
+              </svg>
+            </span>
+            <span>Find a recipe by food name</span>
+            <div class="imp">
+              <input type="text" id="q" placeholder="e.g. salmon" aria-label="Food name" /><button
+                type="button"
+                id="searchBtn"
+              >
+                Search
+              </button>
+            </div>
           </div>
-          <div class="imp">
-            <input
-              type="text"
-              id="url"
-              inputmode="url"
-              placeholder="Paste a recipe link to import"
-              aria-label="Recipe URL"
-            /><button type="button" id="importBtn">Import</button>
+          <div class="create-choice create-choice--import">
+            <span class="create-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M10 13a5 5 0 0 0 7.07 0l3-3A5 5 0 0 0 13 2.93l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 21.07l1.71-1.71" />
+              </svg>
+            </span>
+            <span>Import a recipe from a link</span>
+            <div class="imp">
+              <input
+                type="text"
+                id="url"
+                inputmode="url"
+                placeholder="Paste a recipe link"
+                aria-label="Recipe URL"
+              /><button type="button" id="importBtn">Import</button>
+            </div>
           </div>
-          <label class="drop" id="drop"
-            ><input type="file" id="file" accept="image/*" /><span>📷 Upload a photo</span></label
-          >
-          <button class="scan" type="button" id="scanBtn" hidden>
-            ✨ Read recipe text from photo
+          <div class="create-choice create-choice--photo">
+            <span class="create-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="m21 15-5-5L5 21" />
+              </svg>
+            </span>
+            <span>Upload a recipe photo</span>
+            <label class="drop" id="drop"
+              ><input type="file" id="file" accept="image/*" /><span>📷 Upload a photo</span></label
+            >
+          </div>
+          <button class="create-choice" type="button" data-create-mode="manual">
+            <span class="create-icon" aria-hidden="true">✎</span>
+            <span>Create a recipe manually</span>
           </button>
-          <button class="scan" type="button" id="nextBtn" hidden>Try next match</button>
-          <div id="status" role="status"></div>
-          <label class="f"
-            >Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required
-          /></label>
-          <label class="f"
-            >Ingredients (one per line)<textarea id="ing" rows="3" required></textarea>
-          </label>
-          <label class="f"
-            >Steps (one per line)<textarea id="steps" rows="3" required></textarea>
-          </label>
-          <button class="save" type="submit" id="saveBtn">Save recipe</button>
-          <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
+        </div>
+        <form id="form" class="editonly" hidden>
+          <button class="sec create-back" type="button" id="backCreateOptions">
+            ‹ Back to options
+          </button>
+          <div class="create-method-panel" id="searchAction" hidden>
+            <h2>Find a recipe by food name</h2>
+            <p class="muted">Use the search box above to fetch a recipe.</p>
+          </div>
+          <div class="imp" id="importAction" hidden>
+            <p class="muted">Use the import box above to fetch a recipe.</p>
+          </div>
+          <div class="photo-preview" id="photoPreview" hidden>
+            <span id="photoPreviewEmpty">Recipe image will appear here if found</span>
+            <img id="photoPreviewImage" alt="Recipe image" hidden />
+          </div>
+          <div id="photoAction" hidden>
+            <button class="scan" type="button" id="scanBtn" hidden>
+              ✨ Read recipe text from photo
+            </button>
+            <button class="scan" type="button" id="nextBtn" hidden>Try next match</button>
+          </div>
+          <div id="manualFields" hidden>
+            <div id="status" role="status"></div>
+            <label class="f"
+              >Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required
+            /></label>
+            <label class="f"
+              >Ingredients (one per line)<textarea id="ing" rows="3" required></textarea>
+            </label>
+            <label class="f"
+              >Steps (one per line)<textarea id="steps" rows="3" required></textarea>
+            </label>
+            <button class="save" type="submit" id="saveBtn">Save recipe</button>
+            <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
+          </div>
         </form>
       </section>
       <section id="shopView" hidden>
