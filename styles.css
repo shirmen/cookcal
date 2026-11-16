@@ -736,29 +736,27 @@ html[data-auth="out"] .editonly {
 
 .wk {
   width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
 }
 
 .week-grid {
   width: 100%;
-  min-width: 700px;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: separate;
-  border-spacing: 3px;
-  font-size: 12px;
+  border-spacing: 1px;
+  font-size: 10px;
 }
 
 .week-grid th:first-child {
-  width: 90px;
+  width: 58px;
 }
 
 .week-grid thead th,
 .week-grid tbody th {
-  padding: 4px;
+  padding: 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-align: center;
 }
@@ -780,12 +778,14 @@ html[data-auth="out"] .editonly {
 }
 
 .week-day {
-  min-height: 46px;
+  min-height: 42px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 4px;
+  gap: 1px;
+  padding: 2px;
+  font-size: 10px;
 }
 
 .week-day.sel {
@@ -798,13 +798,13 @@ html[data-auth="out"] .editonly {
 }
 
 .week-cell {
-  min-height: 90px;
+  min-height: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
-  padding: 5px 3px;
+  gap: 3px;
+  padding: 4px 2px;
   text-align: center;
 }
 
@@ -819,8 +819,10 @@ html[data-auth="out"] .editonly {
 
 .week-photo,
 .week-emoji {
-  width: 42px;
-  height: 42px;
+  width: 100%;
+  max-width: 120px;
+  height: auto;
+  aspect-ratio: 1;
   flex: none;
   border-radius: 6px;
 }
@@ -833,22 +835,44 @@ html[data-auth="out"] .editonly {
   display: grid;
   place-items: center;
   background: var(--fill);
-  font-size: 24px;
+  font-size: clamp(18px, 7vw, 38px);
 }
 
 .week-title {
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
-  overflow-wrap: anywhere;
-  font-size: 10px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 9px;
   line-height: 1.2;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .week-empty {
   color: var(--muted);
   background: transparent;
+}
+
+@media (max-width: 380px) {
+  .week-grid th:first-child {
+    width: 48px;
+  }
+
+  .week-grid thead th,
+  .week-grid tbody th {
+    font-size: 9px;
+  }
+
+  .week-day {
+    font-size: 9px;
+  }
+
+  .week-cell {
+    min-height: 64px;
+  }
+
+  .week-title {
+    font-size: 8px;
+  }
 }
 
 .cal {
@@ -882,86 +906,6 @@ html[data-auth="out"] .editonly {
 
 .nav:hover {
   background: var(--fill);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  text-align: center;
-}
-
-.dow {
-  font-size: 12px;
-  color: var(--muted);
-  padding: 4px 0;
-  font-weight: 500;
-}
-
-.day {
-  position: relative;
-  aspect-ratio: 1;
-  min-height: 42px;
-  border: 0;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  border-radius: 50%;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    transform 0.1s;
-}
-
-.day:hover {
-  background: var(--fill);
-}
-
-.day:active {
-  transform: scale(0.92);
-}
-
-.day.other {
-  color: var(--muted);
-  opacity: 0.5;
-}
-
-.day.today {
-  font-weight: 700;
-  color: var(--text);
-  box-shadow: inset 0 0 0 1.5px var(--line);
-}
-
-.day.sel,
-.day.sel:hover {
-  background: var(--card);
-  color: var(--text);
-  font-weight: 700;
-  box-shadow: none;
-  border: 2px solid transparent;
-  background-image: linear-gradient(var(--card), var(--card)), var(--grad);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-}
-
-.day i {
-  position: absolute;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 2px;
-}
-
-.day i b {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.day.sel i b {
-  background: var(--accent);
 }
 
 .plan {

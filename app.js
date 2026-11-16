@@ -1003,136 +1003,116 @@ function shiftSel(dir) {
       new Date(c.getFullYear(), c.getMonth(), c.getDate() + dir * (calMode === "week" ? 7 : 1)),
     );
 }
+function buildMealTable(days, label) {
+  const table = document.createElement("table");
+  table.className = "week-grid";
+  table.setAttribute("aria-label", `${label} meal plan by day`);
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const dayHead = document.createElement("th");
+  dayHead.scope = "col";
+  dayHead.textContent = "Day";
+  headRow.appendChild(dayHead);
+  SLOTS.forEach(([, mealLabel]) => {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = mealLabel;
+    headRow.appendChild(th);
+  });
+  head.appendChild(headRow);
+  table.appendChild(head);
+
+  const body = document.createElement("tbody");
+  days.forEach(({ date, key }) => {
+    const row = document.createElement("tr");
+    const dayCell = document.createElement("th");
+    dayCell.scope = "row";
+    const dayButton = document.createElement("button");
+    dayButton.className =
+      "week-day" + (key === sel ? " sel" : "") + (key === ymd(today) ? " today" : "");
+    dayButton.dataset.date = key;
+    const weekday = document.createElement("span");
+    weekday.textContent = date.toLocaleDateString(undefined, { weekday: "short" });
+    const dayNumber = document.createElement("b");
+    dayNumber.textContent = date.getDate();
+    dayButton.append(weekday, dayNumber);
+    dayCell.appendChild(dayButton);
+    row.appendChild(dayCell);
+
+    SLOTS.forEach(([slot, mealLabel]) => {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.className = "week-cell" + (key === sel ? " sel" : "");
+      button.dataset.date = key;
+      const planned = (plan[key] || []).find((entry) => entry.slot === slot && byId(entry.id));
+      if (planned) {
+        const recipe = byId(planned.id);
+        button.setAttribute(
+          "aria-label",
+          `${mealLabel}: ${recipe.title}, ${date.toLocaleDateString(undefined, { weekday: "long" })}`,
+        );
+        if (recipe.photo) {
+          const image = document.createElement("img");
+          image.className = "week-photo";
+          image.src = recipe.photo;
+          image.alt = "";
+          button.appendChild(image);
+        } else {
+          const emoji = document.createElement("span");
+          emoji.className = "week-emoji";
+          emoji.setAttribute("aria-hidden", "true");
+          emoji.textContent = recipe.emoji || "🍽️";
+          button.appendChild(emoji);
+        }
+        const title = document.createElement("span");
+        title.className = "week-title";
+        title.textContent = recipe.title;
+        button.appendChild(title);
+      } else {
+        button.classList.add("week-empty");
+        button.setAttribute(
+          "aria-label",
+          `No ${mealLabel.toLowerCase()} planned, ${date.toLocaleDateString(undefined, { weekday: "long" })}`,
+        );
+        button.textContent = "—";
+      }
+      cell.appendChild(button);
+      row.appendChild(cell);
+    });
+    body.appendChild(row);
+  });
+  table.appendChild(body);
+  return table;
+}
 function renderCal() {
   const c = fromYmd(sel),
-    g = $("grid"),
     wk = $("week");
   document
     .querySelectorAll("#calMode button")
     .forEach((b) => b.classList.toggle("on", b.dataset.mode === calMode));
-  g.hidden = calMode !== "month";
-  wk.hidden = calMode !== "week";
+  wk.hidden = calMode === "day";
+  wk.innerHTML = "";
   const unit = { day: "day", week: "week", month: "month" }[calMode];
   $("prev").setAttribute("aria-label", "Previous " + unit);
   $("next").setAttribute("aria-label", "Next " + unit);
   if (calMode === "month") {
     $("month").textContent = c.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    g.innerHTML = "";
-    const first = new Date(c.getFullYear(), c.getMonth(), 1);
-    first.setDate(1 - ((first.getDay() + 6) % 7));
-    ["M", "T", "W", "T", "F", "S", "S"].forEach((d) => {
-      const e = document.createElement("div");
-      e.className = "dow";
-      e.textContent = d;
-      g.appendChild(e);
+    const daysInMonth = new Date(c.getFullYear(), c.getMonth() + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const date = new Date(c.getFullYear(), c.getMonth(), i + 1);
+      return { date, key: ymd(date) };
     });
-    for (let i = 0; i < 42; i++) {
-      const d = new Date(first);
-      d.setDate(first.getDate() + i);
-      const k = ymd(d),
-        b = document.createElement("button");
-      b.className =
-        "day" +
-        (d.getMonth() !== c.getMonth() ? " other" : "") +
-        (k === ymd(today) ? " today" : "") +
-        (k === sel ? " sel" : "");
-      b.dataset.date = k;
-      b.textContent = d.getDate();
-      const n = (plan[k] || []).filter((e) => byId(e.id)).length;
-      if (n) {
-        const dots = document.createElement("i");
-        dots.innerHTML = "<b></b>".repeat(Math.min(n, 3));
-        b.appendChild(dots);
-      }
-      g.appendChild(b);
-    }
+    wk.appendChild(buildMealTable(days, "Monthly"));
   } else if (calMode === "week") {
     const mon = new Date(c.getFullYear(), c.getMonth(), c.getDate() - ((c.getDay() + 6) % 7)),
       end = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
     const f = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     $("month").textContent = `${f(mon)} – ${f(end)}`;
-    wk.innerHTML = "";
-    const table = document.createElement("table");
-    table.className = "week-grid";
-    table.setAttribute("aria-label", "Weekly meal plan by day");
-    const head = document.createElement("thead");
-    const headRow = document.createElement("tr");
-    const mealHead = document.createElement("th");
-    mealHead.scope = "col";
-    mealHead.textContent = "Meal";
-    headRow.appendChild(mealHead);
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i),
-        k = ymd(d);
-      days.push({ date: d, key: k });
-      const th = document.createElement("th");
-      th.scope = "col";
-      const b = document.createElement("button");
-      b.className = "week-day" + (k === sel ? " sel" : "") + (k === ymd(today) ? " today" : "");
-      b.dataset.date = k;
-      const weekday = document.createElement("span");
-      weekday.textContent = d.toLocaleDateString(undefined, { weekday: "short" });
-      const dayNumber = document.createElement("b");
-      dayNumber.textContent = d.getDate();
-      b.append(weekday, dayNumber);
-      th.appendChild(b);
-      headRow.appendChild(th);
-    }
-    head.appendChild(headRow);
-    table.appendChild(head);
-
-    const body = document.createElement("tbody");
-    SLOTS.forEach(([slot, label]) => {
-      const row = document.createElement("tr");
-      const th = document.createElement("th");
-      th.scope = "row";
-      th.textContent = label;
-      row.appendChild(th);
-      days.forEach(({ date, key }) => {
-        const cell = document.createElement("td");
-        const button = document.createElement("button");
-        button.className = "week-cell" + (key === sel ? " sel" : "");
-        button.dataset.date = key;
-        const planned = (plan[key] || []).find((entry) => entry.slot === slot && byId(entry.id));
-        if (planned) {
-          const recipe = byId(planned.id);
-          button.setAttribute(
-            "aria-label",
-            `${label}: ${recipe.title}, ${date.toLocaleDateString(undefined, { weekday: "long" })}`,
-          );
-          if (recipe.photo) {
-            const image = document.createElement("img");
-            image.className = "week-photo";
-            image.src = recipe.photo;
-            image.alt = "";
-            button.appendChild(image);
-          } else {
-            const emoji = document.createElement("span");
-            emoji.className = "week-emoji";
-            emoji.setAttribute("aria-hidden", "true");
-            emoji.textContent = recipe.emoji || "🍽️";
-            button.appendChild(emoji);
-          }
-          const title = document.createElement("span");
-          title.className = "week-title";
-          title.textContent = recipe.title;
-          button.appendChild(title);
-        } else {
-          button.classList.add("week-empty");
-          button.setAttribute(
-            "aria-label",
-            `No ${label.toLowerCase()} planned, ${date.toLocaleDateString(undefined, { weekday: "long" })}`,
-          );
-          button.textContent = "—";
-        }
-        cell.appendChild(button);
-        row.appendChild(cell);
-      });
-      body.appendChild(row);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+      return { date, key: ymd(date) };
     });
-    table.appendChild(body);
-    wk.appendChild(table);
+    wk.appendChild(buildMealTable(days, "Weekly"));
   } else {
     $("month").textContent = c.toLocaleDateString(undefined, {
       weekday: "short",
@@ -1196,12 +1176,6 @@ function renderDay() {
     list.appendChild(sec);
   });
 }
-$("grid").addEventListener("click", (e) => {
-  const b = e.target.closest(".day");
-  if (!b) return;
-  sel = b.dataset.date;
-  renderCal();
-});
 $("week").addEventListener("click", (e) => {
   const b = e.target.closest("[data-date]");
   if (!b) return;
