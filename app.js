@@ -1190,9 +1190,18 @@ $("meals").addEventListener("click", (e) => {
   renderCal();
 });
 document.querySelector(".tabs").addEventListener("click", (e) => {
-  const button = e.target.closest("button[data-tab]");
+  let button = e.target.closest("button[data-tab], button[data-action]");
   if (!button) return;
-  const t = button.dataset.tab;
+  const addAction = button.dataset.action === "add";
+  let t = button.dataset.tab;
+  if (addAction) {
+    if (REMOTE && !signedInUser) {
+      t = "account";
+      button = document.querySelector('.tabs button[data-tab="account"]');
+    } else {
+      t = "recipes";
+    }
+  }
   document.querySelectorAll(".tabs button").forEach((b) => {
     const active = b === button;
     b.classList.toggle("on", active);
@@ -1205,6 +1214,12 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
   $("accountView").hidden = t !== "account";
   if (t === "plan") renderCal();
   if (t === "shop") renderShop();
+  if (addAction && (!REMOTE || signedInUser)) {
+    resetForm();
+    setFormOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    $("title").focus({ preventScroll: true });
+  }
 });
 
 /* Account / shared edit access */
