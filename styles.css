@@ -63,6 +63,28 @@ main {
   padding-bottom: 16px;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-signout {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 0 8px 8px;
+  cursor: pointer;
+}
+
+.header-signout:hover {
+  color: var(--text);
+}
+
 h1 {
   font-size: 30px;
   font-weight: 700;
@@ -646,8 +668,7 @@ html[data-auth="out"] .editonly {
   display: none !important;
 }
 
-.account-card {
-  padding: 18px;
+.account-auth {
   display: grid;
   gap: 12px;
 }
@@ -659,21 +680,21 @@ html[data-auth="out"] .editonly {
   letter-spacing: -0.02em;
 }
 
-.account-card h2,
-.account-card p {
+.account-auth h2,
+.account-auth p {
   margin: 0;
 }
 
-.account-card p {
+.account-auth p {
   color: var(--muted);
   font-size: 14px;
 }
 
-.account-card p.error {
+.account-auth p.error {
   color: #b42318;
 }
 
-.account-card form {
+.account-auth form {
   padding: 0;
   margin: 0;
   border: 0;

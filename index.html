@@ -19,7 +19,10 @@
 
   <body>
     <main>
-      <h1>CookCal</h1>
+      <header class="app-header">
+        <h1>CookCal</h1>
+        <button class="header-signout" id="signOut" type="button" hidden>Sign Out</button>
+      </header>
       <div class="sub" id="count"></div>
       <section id="recipesView">
         <div class="list" id="list"></div>
@@ -97,8 +100,8 @@
             <div id="meals" class="list meals-list"></div>
           </div>
         </section>
-        <div class="card account-card">
-          <h2>Account</h2>
+        <div class="account-auth" id="accountAuth">
+          <h2>Profile</h2>
           <p id="accountStatus" role="status">
             Sign in to add or edit shared recipes and meal plans.
           </p>
@@ -120,7 +123,6 @@
               <button class="sec" id="resetPassword" type="button">Forgot password?</button>
             </div>
           </form>
-          <button class="sec" id="signOut" type="button" hidden>Sign out</button>
         </div>
       </section>
     </main>

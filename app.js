@@ -8,7 +8,8 @@ let db,
   fs,
   auth,
   authApi,
-  signedInUser = null;
+  signedInUser = null,
+  createAfterSignIn = false;
 if (REMOTE) {
   const V = "https://www.gstatic.com/firebasejs/10.12.2/";
   const [app, f, a] = await Promise.all([
@@ -1266,6 +1267,7 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
   if (!button) return;
   if (button.dataset.action === "add") {
     if (REMOTE && !signedInUser) {
+      createAfterSignIn = true;
       button = document.querySelector('.tabs button[data-tab="account"]');
       showPage("account", button);
       return;
@@ -1336,6 +1338,7 @@ if (REMOTE) {
     signedInUser = user;
     document.documentElement.dataset.auth = user ? "in" : "out";
     $("authForm").hidden = !!user;
+    $("accountAuth").hidden = !!user;
     $("signOut").hidden = !user;
     $("planView").hidden = !user;
     if (user) {
@@ -1344,6 +1347,12 @@ if (REMOTE) {
       );
       renderCal();
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (createAfterSignIn) {
+        createAfterSignIn = false;
+        resetForm();
+        setFormOpen(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } else authMessage("Sign in to add or edit shared recipes and meal plans.");
   });
 } else {
