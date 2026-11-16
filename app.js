@@ -900,7 +900,6 @@ $("list").addEventListener("click", (e) => {
     $("saveBtn").textContent = "Update recipe";
     $("cancelEdit").hidden = false;
     window.scrollTo({ top: 0, behavior: "smooth" });
-    $("title").focus({ preventScroll: true });
   } else if (e.target.classList.contains("del")) {
     const rec = recipes.find((r) => r.id == c.dataset.id);
     confirmDelete(rec ? rec.title : "this recipe").then((ok) => {
@@ -1214,7 +1213,6 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
     resetForm();
     setFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    $("title").focus({ preventScroll: true });
     return;
   }
   showPage(button.dataset.tab, button);
