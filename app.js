@@ -1195,10 +1195,9 @@ function showPage(t, button) {
   });
   $("recipesView").hidden = t !== "recipes";
   $("addView").hidden = t !== "add";
-  $("planView").hidden = t !== "plan";
   $("shopView").hidden = t !== "shop";
   $("accountView").hidden = t !== "account";
-  if (t === "plan") renderCal();
+  if (t === "account" && signedInUser) renderCal();
   if (t === "shop") renderShop();
 }
 document.querySelector(".tabs").addEventListener("click", (e) => {
@@ -1277,6 +1276,7 @@ if (REMOTE) {
     document.documentElement.dataset.auth = user ? "in" : "out";
     $("authForm").hidden = !!user;
     $("signOut").hidden = !user;
+    $("planView").hidden = !user;
     if (user)
       authMessage(
         `Signed in as ${user.email || "your account"}. You can edit shared recipes and meal plans.`,
