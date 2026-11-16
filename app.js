@@ -824,21 +824,18 @@ function render() {
 }
 let editing = null;
 function setFormOpen(open) {
-  $("form").hidden = !open;
-  $("toggleForm").textContent = open ? "×" : "+";
-  $("toggleForm").setAttribute("aria-label", open ? "Close recipe form" : "Add recipe");
-  $("toggleForm").setAttribute("aria-expanded", String(open));
+  showPage(
+    open ? "add" : "recipes",
+    document.querySelector(
+      open ? '.tabs button[data-action="add"]' : '.tabs button[data-tab="recipes"]',
+    ),
+  );
 }
-$("toggleForm").onclick = () => {
-  if ($("form").hidden) {
-    setFormOpen(true);
-    $("title").focus();
-  } else resetForm();
-};
 function resetForm() {
   editing = null;
   $("form").reset();
   setFormOpen(false);
+  $("addTitle").textContent = "Add recipe";
   photo = null;
   drop.style.backgroundImage = "";
   drop.classList.remove("has");
@@ -890,6 +887,7 @@ $("list").addEventListener("click", (e) => {
     const r = recipes.find((x) => x.id == c.dataset.id);
     editing = r.id;
     setFormOpen(true);
+    $("addTitle").textContent = "Edit recipe";
     photo = r.photo || null;
     photoFile = null;
     $("scanBtn").hidden = !photo;
@@ -1189,19 +1187,7 @@ $("meals").addEventListener("click", (e) => {
   savePlan();
   renderCal();
 });
-document.querySelector(".tabs").addEventListener("click", (e) => {
-  let button = e.target.closest("button[data-tab], button[data-action]");
-  if (!button) return;
-  const addAction = button.dataset.action === "add";
-  let t = button.dataset.tab;
-  if (addAction) {
-    if (REMOTE && !signedInUser) {
-      t = "account";
-      button = document.querySelector('.tabs button[data-tab="account"]');
-    } else {
-      t = "recipes";
-    }
-  }
+function showPage(t, button) {
   document.querySelectorAll(".tabs button").forEach((b) => {
     const active = b === button;
     b.classList.toggle("on", active);
@@ -1209,17 +1195,29 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
     else b.removeAttribute("aria-current");
   });
   $("recipesView").hidden = t !== "recipes";
+  $("addView").hidden = t !== "add";
   $("planView").hidden = t !== "plan";
   $("shopView").hidden = t !== "shop";
   $("accountView").hidden = t !== "account";
   if (t === "plan") renderCal();
   if (t === "shop") renderShop();
-  if (addAction && (!REMOTE || signedInUser)) {
+}
+document.querySelector(".tabs").addEventListener("click", (e) => {
+  let button = e.target.closest("button[data-tab], button[data-action]");
+  if (!button) return;
+  if (button.dataset.action === "add") {
+    if (REMOTE && !signedInUser) {
+      button = document.querySelector('.tabs button[data-tab="account"]');
+      showPage("account", button);
+      return;
+    }
     resetForm();
     setFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
     $("title").focus({ preventScroll: true });
+    return;
   }
+  showPage(button.dataset.tab, button);
 });
 
 /* Account / shared edit access */

@@ -22,18 +22,12 @@
       <h1>CookCal</h1>
       <div class="sub" id="count"></div>
       <section id="recipesView">
-        <div class="recipe-actions editonly">
-          <button
-            class="add"
-            type="button"
-            id="toggleForm"
-            aria-label="Add recipe"
-            aria-expanded="false"
-          >
-            +
-          </button>
-        </div>
-        <form id="form" class="editonly" hidden>
+        <div class="list" id="list"></div>
+        <div class="dots" id="dots"></div>
+      </section>
+      <section id="addView" hidden>
+        <h2 class="page-title" id="addTitle">Add recipe</h2>
+        <form id="form" class="editonly">
           <div class="imp">
             <input
               type="text"
@@ -71,8 +65,6 @@
           <button class="save" type="submit" id="saveBtn">Save recipe</button>
           <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
         </form>
-        <div class="list" id="list"></div>
-        <div class="dots" id="dots"></div>
       </section>
       <section id="shopView" hidden>
         <div class="card cal">
@@ -144,11 +136,11 @@
         </svg>
         <span>Calendar</span>
       </button>
-      <button class="add-new" data-action="add" aria-label="Add new recipe">
+      <button class="add-new" data-action="add" aria-label="Create recipe">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        <span>Add new</span>
+        <span>Create</span>
       </button>
       <button data-tab="shop">
         <svg viewBox="0 0 24 24" aria-hidden="true">
