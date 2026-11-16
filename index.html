@@ -1,85 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CookCal" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link
+      rel="manifest"
+      href='data:application/manifest+json,{"name":"CookCal","short_name":"CookCal","display":"standalone","background_color":"%23fafafa","theme_color":"%23d62976","start_url":"."}'
+    />
+    <title>CookCal</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="CookCal">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="manifest"
-    href='data:application/manifest+json,{"name":"CookCal","short_name":"CookCal","display":"standalone","background_color":"%23fafafa","theme_color":"%23d62976","start_url":"."}'>
-  <title>CookCal</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-
-<body>
-  <main>
-    <h1>CookCal</h1>
-    <div class="sub" id="count"></div>
-    <nav class="tabs"><button class="on" data-tab="recipes">Recipes</button><button
-        data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button></nav>
-    <section id="recipesView">
-      <div class="recipe-actions"><button class="add" type="button" id="toggleForm" aria-label="Add recipe"
-          aria-expanded="false">+</button></div>
-      <form id="form" hidden>
-        <div class="imp"><input type="text" id="q" placeholder="Find the best recipe by food name"
-            aria-label="Food name"><button type="button" id="searchBtn">Search</button></div>
-        <div class="imp"><input type="text" id="url" inputmode="url" placeholder="Paste a recipe link to import"
-            aria-label="Recipe URL"><button type="button" id="importBtn">Import</button></div>
-        <label class="drop" id="drop"><input type="file" id="file" accept="image/*"><span>📷 Upload a
-            photo</span></label>
-        <button class="scan" type="button" id="scanBtn" hidden>✨ Read recipe text from photo</button>
-        <button class="scan" type="button" id="nextBtn" hidden>Try next match</button>
-        <div id="status" role="status"></div>
-        <label class="f">Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required></label>
-        <label class="f">Ingredients (one per line)<textarea id="ing" rows="3" required></textarea></label>
-        <label class="f">Steps (one per line)<textarea id="steps" rows="3" required></textarea></label>
-        <button class="save" type="submit" id="saveBtn">Save recipe</button>
-        <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
+  <body>
+    <main>
+      <h1>CookCal</h1>
+      <div class="sub" id="count"></div>
+      <nav class="tabs">
+        <button class="on" data-tab="recipes">Recipes</button
+        ><button data-tab="plan">Calendar</button><button data-tab="shop">Groceries</button
+        ><button data-tab="account">Account</button>
+      </nav>
+      <section id="recipesView">
+        <div class="recipe-actions editonly">
+          <button
+            class="add"
+            type="button"
+            id="toggleForm"
+            aria-label="Add recipe"
+            aria-expanded="false"
+          >
+            +
+          </button>
+        </div>
+        <form id="form" class="editonly" hidden>
+          <div class="imp">
+            <input
+              type="text"
+              id="q"
+              placeholder="Find the best recipe by food name"
+              aria-label="Food name"
+            /><button type="button" id="searchBtn">Search</button>
+          </div>
+          <div class="imp">
+            <input
+              type="text"
+              id="url"
+              inputmode="url"
+              placeholder="Paste a recipe link to import"
+              aria-label="Recipe URL"
+            /><button type="button" id="importBtn">Import</button>
+          </div>
+          <label class="drop" id="drop"
+            ><input type="file" id="file" accept="image/*" /><span>📷 Upload a photo</span></label
+          >
+          <button class="scan" type="button" id="scanBtn" hidden>
+            ✨ Read recipe text from photo
+          </button>
+          <button class="scan" type="button" id="nextBtn" hidden>Try next match</button>
+          <div id="status" role="status"></div>
+          <label class="f"
+            >Title<input type="text" id="title" placeholder="e.g. Garlic butter pasta" required
+          /></label>
+          <label class="f"
+            >Ingredients (one per line)<textarea id="ing" rows="3" required></textarea>
+          </label>
+          <label class="f"
+            >Steps (one per line)<textarea id="steps" rows="3" required></textarea>
+          </label>
+          <button class="save" type="submit" id="saveBtn">Save recipe</button>
+          <button class="sec" type="button" id="cancelEdit" hidden>Cancel editing</button>
+        </form>
+        <div class="list" id="list"></div>
+        <div class="dots" id="dots"></div>
+      </section>
+      <section id="shopView" hidden>
+        <div class="card cal">
+          <div class="calhead">
+            <button class="nav" id="wprev" aria-label="Previous week">‹</button
+            ><strong id="weekTitle"></strong
+            ><button class="nav" id="wnext" aria-label="Next week">›</button>
+          </div>
+        </div>
+        <div class="card gro" id="groList"></div>
+      </section>
+      <section id="planView" hidden>
+        <div class="seg" id="calMode" role="tablist" aria-label="Calendar view">
+          <button data-mode="day">Day</button><button data-mode="week">Week</button
+          ><button data-mode="month">Month</button>
+        </div>
+        <div class="card cal">
+          <div class="calhead">
+            <button class="nav" id="prev" aria-label="Previous">‹</button
+            ><strong id="month"></strong><button class="nav" id="next" aria-label="Next">›</button>
+          </div>
+          <div class="grid" id="grid"></div>
+          <div class="wk" id="week"></div>
+        </div>
+        <div class="card plan">
+          <h2 id="selTitle"></h2>
+          <div id="meals" class="list meals-list"></div>
+        </div>
+      </section>
+      <section id="accountView" hidden>
+        <div class="card account-card">
+          <h2>Account</h2>
+          <p id="accountStatus" role="status">
+            Sign in to add or edit shared recipes and meal plans.
+          </p>
+          <form id="authForm">
+            <label class="f"
+              >Email<input type="email" id="authEmail" autocomplete="email" required
+            /></label>
+            <label class="f"
+              >Password<input
+                type="password"
+                id="authPassword"
+                autocomplete="current-password"
+                minlength="6"
+                required
+            /></label>
+            <div class="account-actions">
+              <button class="save" id="authSubmit" type="submit">Log in</button>
+              <button class="sec" id="authToggle" type="button">Create account</button>
+              <button class="sec" id="resetPassword" type="button">Forgot password?</button>
+            </div>
+          </form>
+          <button class="sec" id="signOut" type="button" hidden>Sign out</button>
+        </div>
+      </section>
+    </main>
+    <div id="busy" role="alert" aria-live="polite" hidden>
+      <div><i></i><span id="busyMsg"></span></div>
+    </div>
+    <dialog class="confirm" id="confirmDlg">
+      <form method="dialog">
+        <h2>Delete recipe?</h2>
+        <p id="confirmMsg"></p>
+        <div class="row">
+          <button value="cancel" autofocus>Cancel</button
+          ><button value="ok" class="danger">Delete</button>
+        </div>
       </form>
-      <div class="list" id="list"></div>
-      <div class="dots" id="dots"></div>
-    </section>
-    <section id="shopView" hidden>
-      <div class="card cal">
-        <div class="calhead"><button class="nav" id="wprev" aria-label="Previous week">‹</button><strong
-            id="weekTitle"></strong><button class="nav" id="wnext" aria-label="Next week">›</button></div>
-      </div>
-      <div class="card gro" id="groList"></div>
-    </section>
-    <section id="planView" hidden>
-      <div class="seg" id="calMode" role="tablist" aria-label="Calendar view"><button
-          data-mode="day">Day</button><button data-mode="week">Week</button><button data-mode="month">Month</button>
-      </div>
-      <div class="card cal">
-        <div class="calhead"><button class="nav" id="prev" aria-label="Previous">‹</button><strong
-            id="month"></strong><button class="nav" id="next" aria-label="Next">›</button></div>
-        <div class="grid" id="grid"></div>
-        <div class="wk" id="week"></div>
-      </div>
-      <div class="card plan">
-        <h2 id="selTitle"></h2>
-        <div id="meals" class="list meals-list"></div>
-      </div>
-    </section>
-  </main>
-  <div id="busy" role="alert" aria-live="polite" hidden>
-    <div><i></i><span id="busyMsg"></span></div>
-  </div>
-  <dialog class="confirm" id="confirmDlg">
-    <form method="dialog">
-      <h2>Delete recipe?</h2>
-      <p id="confirmMsg"></p>
-      <div class="row"><button value="cancel" autofocus>Cancel</button><button value="ok" class="danger">Delete</button>
-      </div>
-    </form>
-  </dialog>
-  <script src="firebase-config.js"></script>
-  <script type="module" src="app.js"></script>
-</body>
-
+    </dialog>
+    <script src="firebase-config.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
 </html>
