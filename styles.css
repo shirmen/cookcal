@@ -633,24 +633,6 @@ li {
   box-shadow: none;
 }
 
-.tabs button.add-new {
-  color: var(--accent);
-}
-
-.tabs button.add-new svg {
-  width: 30px;
-  height: 30px;
-  padding: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  stroke-width: 2.2;
-}
-
-.tabs button.add-new.on {
-  color: var(--accent);
-}
-
 .tabs button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
