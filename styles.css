@@ -711,6 +711,10 @@ html[data-auth="out"] .editonly {
   cursor: pointer;
 }
 
+.create-choice[data-create-mode="manual"] {
+  width: 480px;
+}
+
 .create-choice--search .imp,
 .create-choice--import .imp {
   width: 100%;
