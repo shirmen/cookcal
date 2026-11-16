@@ -581,7 +581,7 @@ li {
   transform: translateX(-50%);
   width: min(480px, 100%);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
   background: var(--card);
   border-top: 1px solid var(--line);
@@ -624,6 +624,24 @@ li {
   background: none;
   color: var(--text);
   box-shadow: none;
+}
+
+.tabs button.add-new {
+  color: var(--accent);
+}
+
+.tabs button.add-new svg {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  stroke-width: 2.2;
+}
+
+.tabs button.add-new.on {
+  color: var(--accent);
 }
 
 .tabs button:focus-visible {
