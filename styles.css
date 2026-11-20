@@ -711,6 +711,14 @@ html[data-auth="out"] .editonly {
   cursor: pointer;
 }
 
+.create-divider {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
 .create-choice[data-create-mode="manual"] {
   width: 480px;
 }
